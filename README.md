@@ -68,7 +68,7 @@ Não houve web scraping: as duas fontes oferecem API oficial. A tabela 8888 da S
 
 ### 2.2 Persistência na nuvem
 
-Os arquivos brutos ficam versionados no repositório (data/raw). A persistência na plataforma de nuvem (Databricks, Volume do Unity Catalog e tabelas Delta) é feita pelos notebooks 01 e 02, e o status da execução consta na Seção 4.3.
+Os dados brutos foram persistidos em um Volume do Unity Catalog (workspace.industria_juros.raw) no Databricks Free Edition e, após o ETL, em quatro tabelas Delta no mesmo esquema (Seção 4.3). O ambiente Free Edition não tem acesso à internet: a chamada às APIs falhou por erro de resolução de DNS. O notebook 01 trata esse caso copiando o bronze versionado no repositório (data/raw), que foi coletado pelo mesmo script coleta.py em 28/09/2026, e o manifesto de coleta (com hash SHA-256) foi gravado junto.
 
 
 ## 3. Modelagem
@@ -160,7 +160,41 @@ Foram verificadas as integridades referencial (toda chave das fatos existe nas d
 
 ### 4.3 Execução na nuvem e persistência
 
-Status: os notebooks Databricks (notebooks/01, 02 e 03) foram escritos e a lógica que eles executam foi validada localmente, com o mesmo código e as mesmas consultas SQL (o resultado da consulta P1 em SQL bate com o do pandas, diferença 0,0). **A execução dentro do Databricks ainda não foi realizada nesta versão** porque exige login da própria conta do aluno na plataforma, e não há evidência de nuvem (capturas de tela) neste relatório. Os passos para executar estão no README: criar a conta gratuita Databricks Free Edition, criar uma Git folder apontando para o repositório e executar os três notebooks em ordem. Ao final, o notebook 02 grava as quatro tabelas Delta e o comando DESCRIBE HISTORY comprova a persistência.
+Execução realizada em 28/09/2026 no Databricks Free Edition (workspace da conta do aluno, compute serverless), a partir de uma Git folder ligada ao repositório público do GitHub. Os três notebooks foram executados em ordem e as capturas de tela estão referenciadas abaixo.
+
+Notebook 01 (bronze). O ambiente Free Edition não tem saída para a internet: a primeira execução falhou ao chamar a API do IBGE com erro de resolução de DNS ("Failed to resolve 'apisidra.ibge.gov.br'"). O notebook foi então alterado para tentar a API e, em caso de falha, copiar para o Volume o bronze versionado no repositório, que foi coletado pelo script coleta.py em 28/09/2026 (manifesto com URL, volume e SHA-256). Portanto, a coleta a partir das APIs ocorreu na máquina local, e a persistência na nuvem parte do arquivo bruto. A Figura 7 mostra os seis arquivos no Volume workspace.industria_juros.raw (o JSON da PIM-PF tem 1.650.738 bytes, igual ao manifesto).
+
+Notebook 02 (silver e gold). O ETL rodou dentro do Databricks e gravou as quatro tabelas Delta em workspace.industria_juros. As contagens de linhas são idênticas às da execução local: dim_tempo 297, dim_atividade 27, fato_producao 7.965 e fato_macro 297 (Figura 8). O DESCRIBE HISTORY da fato_producao mostra a versão 0 criada por CREATE OR REPLACE TABLE AS SELECT, em 28/09/2026, pelo usuário da conta, o que comprova a persistência (Figura 9).
+
+Notebook 03 (análise). As consultas SQL sobre as tabelas Delta reproduzem os resultados locais: a completude do índice (Figura 10) mostra 120 meses ausentes em 3.18 e 3.33; o P1 em SQL (Figura 11) dá −33,1% para Impressão e −27,0% para Confecção, iguais aos do pandas; o P4 em Spark SQL (Figura 12) dá desvios de 19,6, 17,0, 16,9 e 16,7 p.p. para Fumo, Informática, Veículos e Impressão. A execução de scripts/analise.py sobre as tabelas Delta reproduziu o teste de permutação do P2 (Figura 13): 2.000 permutações, 0 de 27 séries significativas, 11 correlações negativas, e Produtos químicos com r = −0,211, defasagem de 2 meses e p = 0,209, valores idênticos aos da execução local (semente 42).
+
+![Figura 7 — Notebook 01: arquivos brutos no Volume workspace.industria_juros.raw.](evidencias/nuvem_01_bronze_volume.jpg)
+
+*Figura 7 — Notebook 01: arquivos brutos no Volume workspace.industria_juros.raw.*
+
+![Figura 8 — Notebook 02: contagem das quatro tabelas Delta após a carga.](evidencias/nuvem_02_tabelas_delta_contagem.jpg)
+
+*Figura 8 — Notebook 02: contagem das quatro tabelas Delta após a carga.*
+
+![Figura 9 — Notebook 02: DESCRIBE HISTORY da fato_producao (persistência Delta).](evidencias/nuvem_02_delta_describe_history.jpg)
+
+*Figura 9 — Notebook 02: DESCRIBE HISTORY da fato_producao (persistência Delta).*
+
+![Figura 10 — Notebook 03: qualidade do índice por atividade, em SQL sobre o Delta.](evidencias/nuvem_03_qualidade_sql.jpg)
+
+*Figura 10 — Notebook 03: qualidade do índice por atividade, em SQL sobre o Delta.*
+
+![Figura 11 — Notebook 03: P1 em SQL (variação vs. média de 2019).](evidencias/nuvem_03_P1_recuperacao_sql.jpg)
+
+*Figura 11 — Notebook 03: P1 em SQL (variação vs. média de 2019).*
+
+![Figura 12 — Notebook 03: P4 em SQL (desvio-padrão do crescimento anual).](evidencias/nuvem_03_P4_volatilidade_sql.jpg)
+
+*Figura 12 — Notebook 03: P4 em SQL (desvio-padrão do crescimento anual).*
+
+![Figura 13 — Notebook 03: saída do P2 executado sobre as tabelas Delta.](evidencias/nuvem_03_P2_analise_python.jpg)
+
+*Figura 13 — Notebook 03: saída do P2 executado sobre as tabelas Delta.*
 
 
 ## 5. Análise
@@ -308,7 +342,7 @@ Perguntas sugeridas:
 
 - Quais perguntas foram respondidas e quais não? P1, P3 e P4 foram respondidas de forma conclusiva. P2 e P5 tiveram resposta negativa: não há relação detectável entre juro real e crescimento setorial. A causa provável é a combinação de endogeneidade da política monetária, amostra curta e um regressor (juro real ex-post) que não capta o canal de crédito.
 - Que limitações dos dados condicionaram os resultados? Índice sem ajuste sazonal (obrigou o uso de variação anual, que perde informação de curto prazo); apenas 13 anos comparáveis; efeito da pandemia, que exigiu excluir 16 meses; ausência de controles (crédito, renda, demanda externa, preços de commodities); e nível nacional agregado, sem heterogeneidade regional. O câmbio e o juro são medidos por séries únicas para todas as atividades, embora a exposição varie por setor (exportador, importador).
-- Que decisões técnicas tomaria de outra forma? Testaria o pipeline no Databricks desde o primeiro dia, em vez de validá-lo localmente antes, o que evitaria retrabalho na integração. Usaria a série com ajuste sazonal que o IBGE também divulga e um modelo em primeiras diferenças ou VAR, mais adequado a séries persistentes. Incluiria ao menos uma variável de crédito (concessões do BCB) e uma de demanda externa.
+- Que decisões técnicas tomaria de outra forma? Testaria o pipeline no Databricks desde o primeiro dia, em vez de validá-lo localmente antes. Só na execução real apareceu que o Free Edition não acessa a internet, o que obrigou a separar a coleta (local) da persistência (nuvem) e adaptar o notebook 01; descobrir isso cedo teria orientado o desenho da coleta. Usaria a série com ajuste sazonal que o IBGE também divulga e um modelo em primeiras diferenças ou VAR, mais adequado a séries persistentes. Incluiria ao menos uma variável de crédito (concessões do BCB) e uma de demanda externa.
 - Que extensões transformariam o MVP em solução de uso contínuo? Agendamento mensal do job (Databricks Workflows) alinhado à divulgação da PIM-PF; carga incremental em vez de recarga completa; testes automatizados de qualidade (as verificações da Seção 5.1 viram expectativas de dados); painel de monitoramento; inclusão de PIM regional e de indicadores de crédito; e monitoramento da estabilidade das estimativas ao longo do tempo.
 
 Trabalhos futuros. Estimar o efeito do juro com identificação mais forte (choques monetários de alta frequência, ou variáveis instrumentais); incluir a pesquisa regional (PIM-PF regional) e a de comércio exterior para separar exportadores de importadores no P3; estender a análise a serviços e comércio.
@@ -317,6 +351,6 @@ Trabalhos futuros. Estimar o efeito do juro com identificação mais forte (choq
 ## 8. Reprodutibilidade
 
 - Local: python scripts/coleta.py → python scripts/etl.py → python scripts/analise.py → python scripts/gerar_catalogo.py → python scripts/gerar_relatorio.py. Dependências em requirements.txt. Semente aleatória fixa (42).
-- Databricks: criar uma Git folder com o repositório e executar notebooks/01, 02 e 03 em ordem. Os notebooks usam catalog workspace e schema industria_juros.
+- Databricks: criar uma Git folder com o repositório e executar notebooks/01, 02 e 03 em ordem. Os notebooks usam catalog workspace e schema industria_juros. O Free Edition não tem acesso à internet: o notebook 01 tenta a API e, se falhar, usa o bronze versionado em data/raw.
 - Repositório: https://github.com/iwanolucas/MVP-Industria-Juros
 - Fontes: IBGE/SIDRA tabela 8888 (PIM-PF); BCB/SGS séries 4189, 433, 13522 e 3698.

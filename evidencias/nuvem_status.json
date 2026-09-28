@@ -1,0 +1,40 @@
+{
+ "executado": true,
+ "texto_persistencia": "Os dados brutos foram persistidos em um Volume do Unity Catalog (workspace.industria_juros.raw) no Databricks Free Edition e, após o ETL, em quatro tabelas Delta no mesmo esquema (Seção 4.3). O ambiente Free Edition não tem acesso à internet: a chamada às APIs falhou por erro de resolução de DNS. O notebook 01 trata esse caso copiando o bronze versionado no repositório (data/raw), que foi coletado pelo mesmo script coleta.py em 28/09/2026, e o manifesto de coleta (com hash SHA-256) foi gravado junto.",
+ "paragrafos": [
+  "Execução realizada em 28/09/2026 no Databricks Free Edition (workspace da conta do aluno, compute serverless), a partir de uma Git folder ligada ao repositório público do GitHub. Os três notebooks foram executados em ordem e as capturas de tela estão referenciadas abaixo.",
+  "Notebook 01 (bronze). O ambiente Free Edition não tem saída para a internet: a primeira execução falhou ao chamar a API do IBGE com erro de resolução de DNS (\"Failed to resolve 'apisidra.ibge.gov.br'\"). O notebook foi então alterado para tentar a API e, em caso de falha, copiar para o Volume o bronze versionado no repositório, que foi coletado pelo script coleta.py em 28/09/2026 (manifesto com URL, volume e SHA-256). Portanto, a coleta a partir das APIs ocorreu na máquina local, e a persistência na nuvem parte do arquivo bruto. A Figura 7 mostra os seis arquivos no Volume workspace.industria_juros.raw (o JSON da PIM-PF tem 1.650.738 bytes, igual ao manifesto).",
+  "Notebook 02 (silver e gold). O ETL rodou dentro do Databricks e gravou as quatro tabelas Delta em workspace.industria_juros. As contagens de linhas são idênticas às da execução local: dim_tempo 297, dim_atividade 27, fato_producao 7.965 e fato_macro 297 (Figura 8). O DESCRIBE HISTORY da fato_producao mostra a versão 0 criada por CREATE OR REPLACE TABLE AS SELECT, em 28/09/2026, pelo usuário da conta, o que comprova a persistência (Figura 9).",
+  "Notebook 03 (análise). As consultas SQL sobre as tabelas Delta reproduzem os resultados locais: a completude do índice (Figura 10) mostra 120 meses ausentes em 3.18 e 3.33; o P1 em SQL (Figura 11) dá −33,1% para Impressão e −27,0% para Confecção, iguais aos do pandas; o P4 em Spark SQL (Figura 12) dá desvios de 19,6, 17,0, 16,9 e 16,7 p.p. para Fumo, Informática, Veículos e Impressão. A execução de scripts/analise.py sobre as tabelas Delta reproduziu o teste de permutação do P2 (Figura 13): 2.000 permutações, 0 de 27 séries significativas, 11 correlações negativas, e Produtos químicos com r = −0,211, defasagem de 2 meses e p = 0,209, valores idênticos aos da execução local (semente 42)."
+ ],
+ "figuras": [
+  [
+   "nuvem_01_bronze_volume.jpg",
+   "Figura 7 — Notebook 01: arquivos brutos no Volume workspace.industria_juros.raw."
+  ],
+  [
+   "nuvem_02_tabelas_delta_contagem.jpg",
+   "Figura 8 — Notebook 02: contagem das quatro tabelas Delta após a carga."
+  ],
+  [
+   "nuvem_02_delta_describe_history.jpg",
+   "Figura 9 — Notebook 02: DESCRIBE HISTORY da fato_producao (persistência Delta)."
+  ],
+  [
+   "nuvem_03_qualidade_sql.jpg",
+   "Figura 10 — Notebook 03: qualidade do índice por atividade, em SQL sobre o Delta."
+  ],
+  [
+   "nuvem_03_P1_recuperacao_sql.jpg",
+   "Figura 11 — Notebook 03: P1 em SQL (variação vs. média de 2019)."
+  ],
+  [
+   "nuvem_03_P4_volatilidade_sql.jpg",
+   "Figura 12 — Notebook 03: P4 em SQL (desvio-padrão do crescimento anual)."
+  ],
+  [
+   "nuvem_03_P2_analise_python.jpg",
+   "Figura 13 — Notebook 03: saída do P2 executado sobre as tabelas Delta."
+  ]
+ ]
+}
