@@ -1,0 +1,448 @@
+{
+  "q_indice_ausentes_total": 240,
+  "q_indice_ausentes_por_atividade": {
+    "3.18": 120,
+    "3.33": 120
+  },
+  "q_indice_ausentes_intervalo": [
+    "2002-01-01",
+    "2011-12-01"
+  ],
+  "q_indice_nao_positivos": 0,
+  "q_meses_pim": 295,
+  "q_periodo_pim": [
+    "2002-01-01",
+    "2026-07-01"
+  ],
+  "q_indice_min_max_global": [
+    9.39419,
+    316.93031
+  ],
+  "q_lacunas_temporais": 0,
+  "q_duplicatas_chave": 0,
+  "q_outliers_yoy_total": 58,
+  "q_outliers_yoy_em_pandemia_2020_21": 48,
+  "q_outliers_yoy_fora_pandemia": 10,
+  "q_outliers_yoy_top": [
+    {
+      "d": "2021-04",
+      "codigo": "3.29",
+      "var_yoy_pct": 938.8
+    },
+    {
+      "d": "2021-04",
+      "codigo": "3.30",
+      "var_yoy_pct": 375.5
+    },
+    {
+      "d": "2021-04",
+      "codigo": "3.15",
+      "var_yoy_pct": 128.9
+    },
+    {
+      "d": "2021-05",
+      "codigo": "3.30",
+      "var_yoy_pct": 191.9
+    },
+    {
+      "d": "2021-04",
+      "codigo": "3.13",
+      "var_yoy_pct": 102.2
+    },
+    {
+      "d": "2021-04",
+      "codigo": "3.23",
+      "var_yoy_pct": 80.7
+    }
+  ],
+  "q_consist_yoy_max_diff": 1.4210854715202004e-14,
+  "q_ipca12m_vs_composto_max_diff_pp": 0.009105519709274645,
+  "q_ipca12m_vs_composto_medio_pp": 0.002536480157635824,
+  "q_geral_entre_secoes_pct": 100.0,
+  "q_macro_dominios": {
+    "selic_aa": [
+      1.9,
+      26.32
+    ],
+    "ipca_mensal": [
+      -0.68,
+      3.02
+    ],
+    "ipca_12m": [
+      1.88,
+      17.24
+    ],
+    "dolar_medio": [
+      1.5639,
+      6.097
+    ],
+    "selic_real_aa": [
+      -4.440774382970913,
+      12.950386719486895
+    ]
+  },
+  "q_macro_nulos": {
+    "selic_aa": 0,
+    "ipca_mensal": 1,
+    "ipca_12m": 1,
+    "dolar_medio": 1
+  },
+  "q_macro_ultimo_mes": "2026-09-01",
+  "q_defasagem_pim_vs_macro_meses": 2,
+  "amostra_meses": 147,
+  "P1": {
+    "n_divisoes": 24,
+    "abaixo": 13,
+    "acima": 11,
+    "geral_razao": 1.0303153944398225,
+    "extrativas": 1.1026148311581592,
+    "transformacao": 1.0153625817145788,
+    "piores": [
+      [
+        "3.18",
+        "Impressão e reprodução de gravações",
+        0.669
+      ],
+      [
+        "3.14",
+        "Confecção de artigos do vestuário e acessó",
+        0.73
+      ],
+      [
+        "3.31",
+        "móveis",
+        0.827
+      ],
+      [
+        "3.15",
+        "couros e fabricação de artefatos de couro,",
+        0.839
+      ],
+      [
+        "3.32",
+        "produtos diversos",
+        0.843
+      ]
+    ],
+    "melhores": [
+      [
+        "3.12",
+        "produtos do fumo",
+        1.384
+      ],
+      [
+        "3.19",
+        "coque, de produtos derivados do petróleo e",
+        1.148
+      ],
+      [
+        "3.28",
+        "máquinas e equipamentos",
+        1.107
+      ],
+      [
+        "3.30",
+        "outros equipamentos de transporte, exceto ",
+        1.103
+      ],
+      [
+        "3.17",
+        "celulose, papel e produtos de papel",
+        1.077
+      ]
+    ],
+    "geral_queda_2020": -30.728139412646527,
+    "geral_meses": 4.0,
+    "transf_meses": 4.0,
+    "nunca_recuperou": [
+      "3.18",
+      "3.14",
+      "3.32",
+      "3.33"
+    ],
+    "mediana_meses": 4.0
+  },
+  "P2": {
+    "perm_n": 2000,
+    "n_significativas": 0,
+    "n_total": 27,
+    "n_negativas": 11,
+    "top": [
+      [
+        "3.20",
+        "produtos químicos",
+        -0.211,
+        2,
+        0.209
+      ],
+      [
+        "3.19",
+        "coque, de produtos derivados do petróleo e",
+        -0.211,
+        0,
+        0.267
+      ],
+      [
+        "3.28",
+        "máquinas e equipamentos",
+        -0.204,
+        2,
+        0.207
+      ],
+      [
+        "3.30",
+        "outros equipamentos de transporte, exceto ",
+        -0.184,
+        12,
+        0.461
+      ],
+      [
+        "3.16",
+        "produtos de madeira",
+        -0.17,
+        0,
+        0.389
+      ],
+      [
+        "3.23",
+        "produtos de minerais não metálicos",
+        -0.138,
+        0,
+        0.577
+      ]
+    ],
+    "geral": {
+      "r": 0.19089641810512253,
+      "lag": 0,
+      "p": 0.9050474762618691
+    },
+    "transformacao": {
+      "r": 0.08216953201917805,
+      "lag": 0,
+      "p": 0.8565717141429285
+    },
+    "extrativas": {
+      "r": 0.15655806364883196,
+      "lag": 12,
+      "p": 0.9430284857571214
+    },
+    "lag_mediano_divisoes": 0.0,
+    "significativas": []
+  },
+  "P3": {
+    "cambio_pos_sig": [],
+    "cambio_neg_sig": [
+      [
+        "3.33",
+        "Manutenção, reparação e instalação de máqu",
+        -0.161,
+        -4.18
+      ],
+      [
+        "3.18",
+        "Impressão e reprodução de gravações",
+        -0.333,
+        -2.98
+      ],
+      [
+        "3.15",
+        "couros e fabricação de artefatos de couro,",
+        -0.12,
+        -2.86
+      ],
+      [
+        "3.26",
+        "equipamentos de informática, produtos elet",
+        -0.447,
+        -2.61
+      ],
+      [
+        "3.24",
+        "Metalurgia",
+        -0.147,
+        -2.5
+      ],
+      [
+        "3.29",
+        "veículos automotores, reboques e carroceri",
+        -0.415,
+        -2.47
+      ]
+    ],
+    "n_cambio_sig": 9,
+    "n_juro_sig": 3,
+    "n_total": 27,
+    "geral": {
+      "beta_juro": 0.10250558714941252,
+      "t_juro": 0.6031799340823971,
+      "beta_cambio": -0.11812529991686074,
+      "t_cambio": -2.415336559506547,
+      "r2": 0.20442868291859562,
+      "lag": 0
+    },
+    "r2_mediano": 0.06317193141111155,
+    "r2_max": 0.20785434116604573,
+    "r2_max_cod": "3.22",
+    "r2_max_nome": "produtos de borracha e de material plástic"
+  },
+  "P4": {
+    "mais_volateis": [
+      [
+        "3.12",
+        "produtos do fumo",
+        19.6
+      ],
+      [
+        "3.26",
+        "equipamentos de informática, produtos elet",
+        17.0
+      ],
+      [
+        "3.29",
+        "veículos automotores, reboques e carroceri",
+        16.9
+      ],
+      [
+        "3.18",
+        "Impressão e reprodução de gravações",
+        16.7
+      ],
+      [
+        "3.30",
+        "outros equipamentos de transporte, exceto ",
+        13.0
+      ]
+    ],
+    "menos_volateis": [
+      [
+        "3.17",
+        "celulose, papel e produtos de papel",
+        4.4
+      ],
+      [
+        "3.20",
+        "produtos químicos",
+        4.7
+      ],
+      [
+        "3.23",
+        "produtos de minerais não metálicos",
+        5.6
+      ],
+      [
+        "3.22",
+        "produtos de borracha e de material plástic",
+        6.2
+      ],
+      [
+        "3.10",
+        "produtos alimentícios",
+        6.2
+      ]
+    ],
+    "geral": 4.452095176566963,
+    "razao_max_min": 4.464905155528472,
+    "corr_beta_vol": 0.20626498207046504
+  },
+  "P5_juro_real_atual_pct": 9.32642487046631,
+  "P5_ult_mes_juro_real": "2026-08-01",
+  "P5_juro_real_media_hist_pct": 5.4702527869470225,
+  "P5_selic_atual": 13.79,
+  "P5_ipca12m_atual": 4.22,
+  "P5": {
+    "delta_pp": -3.0,
+    "geral": {
+      "efeito": -0.3075167614482376,
+      "ic": [
+        -1.3067755536948138,
+        0.6917420307983386
+      ]
+    },
+    "transformacao": {
+      "efeito": 0.12456018794698914,
+      "ic": [
+        -1.1944441687566854,
+        1.4435645446506635
+      ]
+    },
+    "extrativas": {
+      "efeito": -1.23523380248159,
+      "ic": [
+        -2.231796881035057,
+        -0.23867072392812294
+      ]
+    },
+    "top": [
+      [
+        "3.18",
+        "Impressão e reprodução de gravações",
+        3.24,
+        [
+          -1.6,
+          8.09
+        ],
+        0
+      ],
+      [
+        "3.28",
+        "máquinas e equipamentos",
+        2.44,
+        [
+          0.31,
+          4.56
+        ],
+        2
+      ],
+      [
+        "3.30",
+        "outros equipamentos de transporte, exceto ",
+        1.93,
+        [
+          -2.03,
+          5.89
+        ],
+        12
+      ],
+      [
+        "3.19",
+        "coque, de produtos derivados do petróleo e",
+        1.65,
+        [
+          0.01,
+          3.28
+        ],
+        0
+      ],
+      [
+        "3.16",
+        "produtos de madeira",
+        1.48,
+        [
+          -0.28,
+          3.25
+        ],
+        0
+      ]
+    ],
+    "n_ic_exclui_zero": 2,
+    "n_efeito_positivo": 15,
+    "n_div": 24,
+    "top_ratio": [
+      [
+        "3.28",
+        "máquinas e equipamentos",
+        0.259
+      ],
+      [
+        "3.19",
+        "coque, de produtos derivados do petróleo e",
+        0.231
+      ],
+      [
+        "3.20",
+        "produtos químicos",
+        0.223
+      ]
+    ]
+  }
+}

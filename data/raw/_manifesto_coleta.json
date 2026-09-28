@@ -1,0 +1,47 @@
+[
+  {
+    "arquivo": "pimpf_8888.json",
+    "url": "https://apisidra.ibge.gov.br/values/t/8888/n1/all/v/12606/p/all/c544/all/f/n",
+    "coletado_em_utc": "2026-09-28T23:09:33+00:00",
+    "formato_original": "JSON (lista de objetos)",
+    "registros": 7966,
+    "bytes": 1650738,
+    "sha256": "ba438e3c1d2544b249f97a5aeac9decefc8cd9a9095eb52813b05564f7ff3586"
+  },
+  {
+    "arquivo": "sgs_4189_selic_anualizada.json",
+    "url": "https://api.bcb.gov.br/dados/serie/bcdata.sgs.4189/dados?formato=json&dataInicial=01/01/2002&dataFinal=30/09/2026",
+    "coletado_em_utc": "2026-09-28T23:09:48+00:00",
+    "formato_original": "JSON (lista de objetos)",
+    "registros": 297,
+    "bytes": 12385,
+    "sha256": "9b6dae3e63a4322b6ff3413ff7038b094df44e12339fa3bc0d5e5d6c4b675121"
+  },
+  {
+    "arquivo": "sgs_433_ipca_mensal.json",
+    "url": "https://api.bcb.gov.br/dados/serie/bcdata.sgs.433/dados?formato=json&dataInicial=01/01/2002&dataFinal=30/09/2026",
+    "coletado_em_utc": "2026-09-28T23:09:49+00:00",
+    "formato_original": "JSON (lista de objetos)",
+    "registros": 296,
+    "bytes": 12152,
+    "sha256": "e47c9dc6827cb85c0588fc415f1be48fe6cff274ed7c2cb5c6abda9d1c3476cf"
+  },
+  {
+    "arquivo": "sgs_13522_ipca_12m.json",
+    "url": "https://api.bcb.gov.br/dados/serie/bcdata.sgs.13522/dados?formato=json&dataInicial=01/01/2002&dataFinal=30/09/2026",
+    "coletado_em_utc": "2026-09-28T23:09:50+00:00",
+    "formato_original": "JSON (lista de objetos)",
+    "registros": 296,
+    "bytes": 12164,
+    "sha256": "26031fc61419b3a30dda51aeb2b8704fb4aec636c67ef6441efd048e86585cc0"
+  },
+  {
+    "arquivo": "sgs_3698_dolar_medio.json",
+    "url": "https://api.bcb.gov.br/dados/serie/bcdata.sgs.3698/dados?formato=json&dataInicial=01/01/2002&dataFinal=30/09/2026",
+    "coletado_em_utc": "2026-09-28T23:09:52+00:00",
+    "formato_original": "JSON (lista de objetos)",
+    "registros": 296,
+    "bytes": 12728,
+    "sha256": "7b016eefee3291b889baed296047b8dec55bd50ecf186530e77619a64f4e1460"
+  }
+]

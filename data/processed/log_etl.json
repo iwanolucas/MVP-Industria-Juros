@@ -1,0 +1,11 @@
+{
+  "pim_linhas_brutas": 7965,
+  "pim_valores_ausentes_R3": 240,
+  "pim_duplicatas_removidas_R5": 0,
+  "macro_meses": 297,
+  "macro_meses_sem_producao_R9": 2,
+  "gold_dim_tempo_linhas": 297,
+  "gold_dim_atividade_linhas": 27,
+  "gold_fato_producao_linhas": 7965,
+  "gold_fato_macro_linhas": 297
+}

@@ -1,0 +1,28 @@
+,atividade,lag_otimo_meses,r_melhor,r_lag0,p_perm
+3.20,produtos químicos,2,-0.2108,-0.2023,0.2089
+3.19,"coque, de produtos derivados do petróleo e",0,-0.2105,-0.2105,0.2669
+3.28,máquinas e equipamentos,2,-0.2042,-0.1872,0.2069
+3.30,"outros equipamentos de transporte, exceto ",12,-0.1836,0.062,0.4613
+3.16,produtos de madeira,0,-0.17,-0.17,0.3888
+3.23,produtos de minerais não metálicos,0,-0.1382,-0.1382,0.5772
+3.17,"celulose, papel e produtos de papel",1,-0.1349,-0.125,0.2549
+3.18,Impressão e reprodução de gravações,0,-0.1223,-0.1223,0.4068
+3.15,"couros e fabricação de artefatos de couro,",11,-0.0175,0.0344,0.6392
+3.24,Metalurgia,0,-0.0118,-0.0118,0.7701
+3.21,produtos farmoquímicos e farmacêuticos,12,-0.0108,0.1567,0.7621
+3.14,Confecção de artigos do vestuário e acessó,0,0.0044,0.0044,0.9225
+3.32,produtos diversos,1,0.0084,0.0146,0.7731
+3.11,bebidas,0,0.0241,0.0241,0.7981
+3.12,produtos do fumo,12,0.0271,0.2426,0.7506
+3.10,produtos alimentícios,12,0.03,0.2572,0.7896
+3.29,"veículos automotores, reboques e carroceri",0,0.0427,0.0427,0.8626
+3.33,"Manutenção, reparação e instalação de máqu",12,0.0624,0.2983,0.8861
+3.27,"máquinas, aparelhos e materiais elétricos",0,0.0729,0.0729,0.8891
+3.25,"produtos de metal, exceto máquinas e equip",0,0.0775,0.0775,0.8436
+3,Indústrias de transformação,0,0.0822,0.0822,0.8566
+3.26,"equipamentos de informática, produtos elet",4,0.1002,0.1194,0.9475
+2,Indústrias extrativas,12,0.1566,0.4523,0.943
+1,Indústria geral,0,0.1909,0.1909,0.905
+3.31,móveis,0,0.3061,0.3061,1.0
+3.13,produtos têxteis,0,0.3175,0.3175,0.974
+3.22,produtos de borracha e de material plástic,0,0.358,0.358,0.983

@@ -1,0 +1,28 @@
+sk_atividade,codigo,atividade,nivel,secao_pai,atividade_curta
+1,1,Indústria geral,geral,,Indústria geral
+2,2,Indústrias extrativas,secao,,Indústrias extrativas
+3,3,Indústrias de transformação,secao,,Indústrias de transformação
+4,3.10,Fabricação de produtos alimentícios,divisao,3,produtos alimentícios
+5,3.11,Fabricação de bebidas,divisao,3,bebidas
+6,3.12,Fabricação de produtos do fumo,divisao,3,produtos do fumo
+7,3.13,Fabricação de produtos têxteis,divisao,3,produtos têxteis
+8,3.14,Confecção de artigos do vestuário e acessórios,divisao,3,Confecção de artigos do vestuário e acessó
+9,3.15,"Preparação de couros e fabricação de artefatos de couro, artigos para viagem e calçados",divisao,3,"couros e fabricação de artefatos de couro,"
+10,3.16,Fabricação de produtos de madeira,divisao,3,produtos de madeira
+11,3.17,"Fabricação de celulose, papel e produtos de papel",divisao,3,"celulose, papel e produtos de papel"
+12,3.18,Impressão e reprodução de gravações,divisao,3,Impressão e reprodução de gravações
+13,3.19,"Fabricação de coque, de produtos derivados do petróleo e de biocombustíveis",divisao,3,"coque, de produtos derivados do petróleo e"
+14,3.20,Fabricação de produtos químicos,divisao,3,produtos químicos
+15,3.21,Fabricação de produtos farmoquímicos e farmacêuticos,divisao,3,produtos farmoquímicos e farmacêuticos
+16,3.22,Fabricação de produtos de borracha e de material plástico,divisao,3,produtos de borracha e de material plástic
+17,3.23,Fabricação de produtos de minerais não metálicos,divisao,3,produtos de minerais não metálicos
+18,3.24,Metalurgia,divisao,3,Metalurgia
+19,3.25,"Fabricação de produtos de metal, exceto máquinas e equipamentos",divisao,3,"produtos de metal, exceto máquinas e equip"
+20,3.26,"Fabricação de equipamentos de informática, produtos eletrônicos e ópticos",divisao,3,"equipamentos de informática, produtos elet"
+21,3.27,"Fabricação de máquinas, aparelhos e materiais elétricos",divisao,3,"máquinas, aparelhos e materiais elétricos"
+22,3.28,Fabricação de máquinas e equipamentos,divisao,3,máquinas e equipamentos
+23,3.29,"Fabricação de veículos automotores, reboques e carrocerias",divisao,3,"veículos automotores, reboques e carroceri"
+24,3.30,"Fabricação de outros equipamentos de transporte, exceto veículos automotores",divisao,3,"outros equipamentos de transporte, exceto "
+25,3.31,Fabricação de móveis,divisao,3,móveis
+26,3.32,Fabricação de produtos diversos,divisao,3,produtos diversos
+27,3.33,"Manutenção, reparação e instalação de máquinas e equipamentos",divisao,3,"Manutenção, reparação e instalação de máqu"
