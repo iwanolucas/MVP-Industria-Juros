@@ -13,10 +13,18 @@ RAW = f"/Volumes/{CATALOGO}/{ESQUEMA}/raw"
 
 # COMMAND ----------
 
-import os, sys, runpy
+import os, sys, runpy, shutil, glob
 raiz = os.path.abspath(os.path.join(os.getcwd(), ".."))          # raiz do repositório na Git folder
 sys.argv = ["coleta.py", RAW]
-runpy.run_path(os.path.join(raiz, "scripts", "coleta.py"), run_name="__main__")
+try:
+    runpy.run_path(os.path.join(raiz, "scripts", "coleta.py"), run_name="__main__")
+    print("Coleta via API concluída.")
+except Exception as e:
+    # O Databricks Free Edition não tem saída para a internet (falha de DNS). Nesse caso usa-se o bronze
+    # versionado no repositório (data/raw), coletado pelo mesmo script em 28/09/2026 (ver _manifesto_coleta.json).
+    print(f"API inacessível neste ambiente ({type(e).__name__}); copiando o bronze versionado do repositório.")
+    for arq in glob.glob(os.path.join(raiz, "data", "raw", "*.json")):
+        shutil.copy(arq, RAW)
 
 # COMMAND ----------
 
