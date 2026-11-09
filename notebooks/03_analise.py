@@ -64,7 +64,11 @@ mapa = resultado["mapa"].reset_index()
 cols = ["codigo", "atividade", "folga_pp", "instabilidade_pp", "expos_juro_pp", "expos_cambio_pp", "indice_risco", "ranking", "faixa"]
 sdf = spark.createDataFrame(mapa[cols])
 sdf.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable("workspace.industria_juros.mapa_risco")
-display(spark.sql("SELECT * FROM workspace.industria_juros.mapa_risco ORDER BY ranking"))
+display(spark.sql("""
+  SELECT ranking, faixa, codigo, atividade, ROUND(indice_risco, 2) AS indice_risco,
+         ROUND(folga_pp, 1) AS folga_pp, ROUND(instabilidade_pp, 1) AS instabilidade_pp,
+         ROUND(expos_juro_pp, 1) AS expos_juro_pp, ROUND(expos_cambio_pp, 2) AS expos_cambio_pp
+  FROM workspace.industria_juros.mapa_risco ORDER BY ranking"""))
 
 # COMMAND ----------
 
