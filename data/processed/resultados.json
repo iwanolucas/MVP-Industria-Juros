@@ -458,5 +458,318 @@
         0.223
       ]
     ]
+  },
+  "CICLOS": {
+    "definicao": "Selic do mês > Selic de 12 meses antes",
+    "perm_n": 2000,
+    "meses_alta_completo": 129,
+    "meses_completo": 267,
+    "completo": {
+      "n_div": 24,
+      "n_negativas": 21,
+      "n_neg_sig": 6,
+      "n_pos_sig": 0,
+      "geral": {
+        "dif": -3.4805995858937577,
+        "p": 0.04047976011994003
+      }
+    },
+    "exploracao": {
+      "n_div": 24,
+      "n_negativas": 21,
+      "n_neg_sig": 7,
+      "n_pos_sig": 0,
+      "geral": {
+        "dif": -3.6934355492793665,
+        "p": 0.12993503248375812
+      }
+    },
+    "validacao": {
+      "n_div": 22,
+      "n_negativas": 18,
+      "n_neg_sig": 1,
+      "n_pos_sig": 0,
+      "geral": {
+        "dif": -2.486550462954961,
+        "p": 0.4757621189405297
+      }
+    },
+    "alvos": [
+      [
+        "3.31",
+        "Móveis",
+        -10.68,
+        -6.42,
+        0.13
+      ],
+      [
+        "3.13",
+        "Têxteis",
+        -8.67,
+        -7.5,
+        0.092
+      ],
+      [
+        "3.11",
+        "Bebidas",
+        -2.93,
+        -2.3,
+        0.437
+      ],
+      [
+        "3.25",
+        "Produtos de metal",
+        -8.98,
+        -3.14,
+        0.577
+      ],
+      [
+        "3.16",
+        "Madeira",
+        -7.51,
+        -1.56,
+        0.785
+      ],
+      [
+        "3.27",
+        "Máquinas e materiais elétricos",
+        -8.75,
+        -7.75,
+        0.048
+      ]
+    ],
+    "criterio_sinal": true,
+    "alvos_negativos_validacao": 6,
+    "criterio_significancia": false
+  },
+  "MAPA": {
+    "ranking": [
+      [
+        "3.26",
+        "Informática, eletrônicos e ópticos",
+        1,
+        "alto",
+        1.7
+      ],
+      [
+        "3.29",
+        "Veículos automotores",
+        2,
+        "alto",
+        1.61
+      ],
+      [
+        "3.18",
+        "Impressão e reprodução de gravações",
+        3,
+        "alto",
+        1.2
+      ],
+      [
+        "3.31",
+        "Móveis",
+        4,
+        "alto",
+        0.47
+      ],
+      [
+        "3.14",
+        "Vestuário e acessórios",
+        5,
+        "alto",
+        0.43
+      ],
+      [
+        "3.13",
+        "Têxteis",
+        6,
+        "alto",
+        0.35
+      ],
+      [
+        "3.27",
+        "Máquinas e materiais elétricos",
+        7,
+        "alto",
+        0.26
+      ],
+      [
+        "3.15",
+        "Couro, artigos de viagem e calçados",
+        8,
+        "alto",
+        0.09
+      ],
+      [
+        "3.28",
+        "Máquinas e equipamentos",
+        9,
+        "médio",
+        -0.03
+      ],
+      [
+        "3.25",
+        "Produtos de metal",
+        10,
+        "médio",
+        -0.05
+      ],
+      [
+        "3.16",
+        "Madeira",
+        11,
+        "médio",
+        -0.1
+      ],
+      [
+        "3.32",
+        "Produtos diversos",
+        12,
+        "médio",
+        -0.13
+      ],
+      [
+        "3.33",
+        "Manutenção e reparação de máquinas",
+        13,
+        "médio",
+        -0.2
+      ],
+      [
+        "3.24",
+        "Metalurgia",
+        14,
+        "médio",
+        -0.23
+      ],
+      [
+        "3.22",
+        "Borracha e plástico",
+        15,
+        "médio",
+        -0.25
+      ],
+      [
+        "3.12",
+        "Fumo",
+        16,
+        "médio",
+        -0.31
+      ],
+      [
+        "3.21",
+        "Farmoquímicos e farmacêuticos",
+        17,
+        "baixo",
+        -0.32
+      ],
+      [
+        "3.11",
+        "Bebidas",
+        18,
+        "baixo",
+        -0.49
+      ],
+      [
+        "3.20",
+        "Químicos",
+        19,
+        "baixo",
+        -0.51
+      ],
+      [
+        "3.30",
+        "Outros equipamentos de transporte",
+        20,
+        "baixo",
+        -0.54
+      ],
+      [
+        "3.23",
+        "Minerais não metálicos",
+        21,
+        "baixo",
+        -0.6
+      ],
+      [
+        "3.10",
+        "Alimentos",
+        22,
+        "baixo",
+        -0.67
+      ],
+      [
+        "3.19",
+        "Derivados de petróleo e biocombustíveis",
+        23,
+        "baixo",
+        -0.74
+      ],
+      [
+        "3.17",
+        "Celulose e papel",
+        24,
+        "baixo",
+        -0.93
+      ]
+    ],
+    "alto": [
+      "Informática, eletrônicos e ópticos",
+      "Veículos automotores",
+      "Impressão e reprodução de gravações",
+      "Móveis",
+      "Vestuário e acessórios",
+      "Têxteis",
+      "Máquinas e materiais elétricos",
+      "Couro, artigos de viagem e calçados"
+    ],
+    "baixo": [
+      "Farmoquímicos e farmacêuticos",
+      "Bebidas",
+      "Químicos",
+      "Outros equipamentos de transporte",
+      "Minerais não metálicos",
+      "Alimentos",
+      "Derivados de petróleo e biocombustíveis",
+      "Celulose e papel"
+    ],
+    "spearman_indice_por_postos": 0.9852110544886851,
+    "deixa_uma_fora": {
+      "Folga": {
+        "spearman": 0.8582608695652173,
+        "top8_mantidos": 6
+      },
+      "Instabilidade": {
+        "spearman": 0.9347826086956521,
+        "top8_mantidos": 8
+      },
+      "Exposição ao juro": {
+        "spearman": 0.8547826086956521,
+        "top8_mantidos": 7
+      },
+      "Exposição ao câmbio": {
+        "spearman": 0.9617391304347825,
+        "top8_mantidos": 7
+      }
+    },
+    "corr_dims_max_abs": 0.65,
+    "corr_dims": {
+      "Folga × Instabilidade": -0.04,
+      "Folga × Exposição ao juro": 0.21,
+      "Folga × Exposição ao câmbio": 0.23,
+      "Instabilidade × Exposição ao juro": 0.17,
+      "Instabilidade × Exposição ao câmbio": 0.65,
+      "Exposição ao juro × Exposição ao câmbio": 0.43
+    },
+    "dimensao_dominante_top8": {
+      "3.26": "Exposição ao câmbio",
+      "3.29": "Exposição ao câmbio",
+      "3.18": "Folga",
+      "3.31": "Exposição ao juro",
+      "3.14": "Folga",
+      "3.13": "Exposição ao juro",
+      "3.27": "Exposição ao juro",
+      "3.15": "Folga"
+    }
   }
 }

@@ -316,6 +316,104 @@ R["P5"] = dict(
     n_ic_exclui_zero=int(sd5.ic_exclui_zero.sum()), n_efeito_positivo=int((sd5.efeito_pp > 0).sum()), n_div=int(len(sd5)),
     top_ratio=[(c, r.atividade, round(r.efeito_por_vol, 3)) for c, r in sd5.sort_values("efeito_por_vol", ascending=False).head(3).iterrows()],
 )
+
+# ================================================================== CICLOS DE JUROS (exposição ao juro pela direção da Selic)
+# Ciclo de alta: Selic do mês maior que a de 12 meses antes. Definição fixada antes da validação fora da amostra.
+ALTA = ((macro.selic_aa - macro.selic_aa.shift(12)) > 0).where(macro.selic_aa.shift(12).notna())
+PERIODOS = {"completo": ("2003-01-01", "2099-12-01"), "exploracao": ("2013-01-01", "2099-12-01"), "validacao": ("2003-01-01", "2012-12-01")}
+RNG_C = np.random.default_rng(42)   # gerador próprio: não altera a sequência aleatória das seções anteriores
+
+
+def ciclo(cod, ini, fim):
+    """Diferença de crescimento anual médio (alta − corte), p-valor por deslocamento circular e diferença na frequência de quedas > 5%."""
+    d = pd.concat([YOY[cod].rename("y"), ALTA.rename("alta")], axis=1).dropna()
+    d = d[(d.index >= ini) & (d.index <= fim) & fora_covid(d.index)]
+    if len(d) < 36 or d.alta.nunique() < 2:
+        return dict(dif=np.nan, p=np.nan, dif_queda5=np.nan, n=len(d), n_alta=int(d.alta.sum()) if len(d) else 0)
+    y, r = d.y.values, d.alta.values.astype(bool)
+    dif = y[r].mean() - y[~r].mean()
+    cnt = sum(abs(y[np.roll(r, s)].mean() - y[~np.roll(r, s)].mean()) >= abs(dif) for s in RNG_C.integers(1, len(r), PERM_N))
+    return dict(dif=dif, p=(cnt + 1) / (PERM_N + 1), dif_queda5=100 * ((y[r] < -5).mean() - (y[~r] < -5).mean()), n=len(d), n_alta=int(r.sum()))
+
+
+linhas_c = []
+for c in YOY.columns:
+    reg = {"codigo": c, "atividade": nomes[c]}
+    for per, (ini, fim) in PERIODOS.items():
+        for k, v in ciclo(c, ini, fim).items():
+            reg[f"{k}_{per}"] = v
+    linhas_c.append(reg)
+cic = pd.DataFrame(linhas_c).set_index("codigo")
+cic.round(4).to_csv(PROC / "tab_ciclos_juros.csv", encoding="utf-8")
+div_c = cic[cic.index.str.startswith("3.")]
+ALVOS_EXPLORACAO = ["3.31", "3.13", "3.11", "3.25", "3.16", "3.27"]   # significativos na exploração 2013–2026
+
+
+def resumo_periodo(per):
+    x = div_c.dropna(subset=[f"dif_{per}"])
+    return dict(n_div=int(len(x)), n_negativas=int((x[f"dif_{per}"] < 0).sum()),
+                n_neg_sig=int(((x[f"p_{per}"] < .05) & (x[f"dif_{per}"] < 0)).sum()),
+                n_pos_sig=int(((x[f"p_{per}"] < .05) & (x[f"dif_{per}"] > 0)).sum()),
+                geral=dict(dif=float(cic.loc["1", f"dif_{per}"]), p=float(cic.loc["1", f"p_{per}"])))
+
+
+val = cic.loc[ALVOS_EXPLORACAO]
+R["CICLOS"] = dict(
+    definicao="Selic do mês > Selic de 12 meses antes", perm_n=PERM_N,
+    meses_alta_completo=int(cic.loc["1", "n_alta_completo"]), meses_completo=int(cic.loc["1", "n_completo"]),
+    completo=resumo_periodo("completo"), exploracao=resumo_periodo("exploracao"), validacao=resumo_periodo("validacao"),
+    alvos=[(c, nomes[c], round(float(val.loc[c, "dif_exploracao"]), 2), round(float(val.loc[c, "dif_validacao"]), 2),
+            round(float(val.loc[c, "p_validacao"]), 3)) for c in ALVOS_EXPLORACAO],
+    criterio_sinal=bool((val.dif_validacao < 0).sum() >= 4), alvos_negativos_validacao=int((val.dif_validacao < 0).sum()),
+    criterio_significancia=bool(resumo_periodo("validacao")["n_neg_sig"] > 2),
+)
+
+# ================================================================== MAPA DE RISCO SETORIAL (síntese)
+DIMS = {"folga_pp": "Folga", "instabilidade_pp": "Instabilidade", "expos_juro_pp": "Exposição ao juro", "expos_cambio_pp": "Exposição ao câmbio"}
+divs = [c for c in YOY.columns if c.startswith("3.")]
+mapa = pd.DataFrame(index=pd.Index(divs, name="codigo"))
+mapa["atividade"] = [nomes[c] for c in divs]
+mapa["folga_pp"] = -(p1.loc[divs, "razao_ult12m_2019"] - 1) * 100        # % abaixo de 2019 (positivo = abaixo)
+mapa["instabilidade_pp"] = p4.loc[divs, "sd_yoy"]                      # desvio-padrão do crescimento anual
+mapa["expos_juro_pp"] = -cic.loc[divs, "dif_completo"]                 # quanto cresce a menos na alta da Selic
+mapa["expos_cambio_pp"] = -p3.loc[divs, "beta_cambio"]                 # quanto cresce a menos por 1% de desvalorização
+for col in DIMS:
+    mapa[f"z_{col}"] = (mapa[col] - mapa[col].mean()) / mapa[col].std(ddof=0)
+zcols = [f"z_{c}" for c in DIMS]
+mapa["indice_risco"] = mapa[zcols].mean(axis=1)
+mapa = mapa.sort_values("indice_risco", ascending=False)
+mapa["ranking"] = range(1, len(mapa) + 1)
+mapa["faixa"] = np.where(mapa.ranking <= 8, "alto", np.where(mapa.ranking <= 16, "médio", "baixo"))
+
+
+def spearman(a, b):
+    return float(np.corrcoef(pd.Series(a).rank(), pd.Series(b).rank())[0, 1])
+
+
+top8 = set(mapa.index[:8])
+loo = {}
+for col in DIMS:
+    outros = [f"z_{c}" for c in DIMS if c != col]
+    alt = mapa[outros].mean(axis=1).sort_values(ascending=False)
+    loo[DIMS[col]] = dict(spearman=spearman(mapa.indice_risco, mapa[outros].mean(axis=1)), top8_mantidos=len(top8 & set(alt.index[:8])))
+idx_rank = mapa[list(DIMS)].rank(ascending=False).mean(axis=1)
+corr_dims = mapa[list(DIMS)].corr().round(2)
+mapa.round(3).to_csv(PROC / "tab_mapa_risco.csv", encoding="utf-8")
+corr_dims.to_csv(PROC / "tab_mapa_correlacao_dimensoes.csv", encoding="utf-8")
+R["MAPA"] = dict(
+    ranking=[(c, r.atividade, int(r.ranking), r.faixa, round(float(r.indice_risco), 2)) for c, r in mapa.iterrows()],
+    alto=[mapa.loc[c, "atividade"] for c in mapa.index[:8]], baixo=[mapa.loc[c, "atividade"] for c in mapa.index[-8:]],
+    spearman_indice_por_postos=spearman(mapa.indice_risco, -idx_rank), deixa_uma_fora=loo,
+    corr_dims_max_abs=float(corr_dims.where(~np.eye(4, dtype=bool)).abs().max().max()),
+    corr_dims={f"{DIMS[a]} × {DIMS[b]}": float(corr_dims.loc[a, b]) for i, a in enumerate(DIMS) for b in list(DIMS)[i + 1:]},
+    dimensao_dominante_top8={c: DIMS[mapa.loc[c, zcols].astype(float).idxmax()[2:]] for c in mapa.index[:8]},
+)
+if "spark" not in globals():   # localmente, a tabela de consumo também vai para o DW (no Databricks, o notebook 03 grava em Delta)
+    sk = pd.read_sql("SELECT sk_atividade, codigo FROM dim_atividade", con).set_index("codigo").sk_atividade
+    (mapa.reset_index().assign(sk_atividade=lambda d: d.codigo.map(sk))
+     [["sk_atividade", "codigo", "atividade", *DIMS, "indice_risco", "ranking", "faixa"]]
+     .to_sql("mapa_risco", con, if_exists="replace", index=False))
+    con.commit()
 json.dump(R, open(PROC / "resultados.json", "w", encoding="utf-8"), indent=2, ensure_ascii=False, default=str)
 
 
@@ -408,6 +506,43 @@ ax.set_xticks([(pd.Timestamp(f"{a}-01-01") - lin.columns[0]).days / 30.44 for a 
 ax.set_xticklabels(anos)
 ax.set_title("Qualidade — meses sem informação no IBGE (vermelho = ausente)", fontsize=10)
 salvar(fig, "fig6_qualidade_ausencias.png")
+
+# ciclos de juros: diferença alta − corte nos dois períodos independentes
+s = div_c.sort_values("dif_completo")
+fig, ax = plt.subplots(figsize=(9, 6.6))
+yy = np.arange(len(s))
+ax.axvline(0, color="black", lw=.8)
+for i, (c, r) in enumerate(s.iterrows()):
+    vals_ = [v for v in (r.dif_exploracao, r.dif_validacao) if not np.isnan(v)]
+    ax.plot([min(vals_), max(vals_)], [i, i], color=CINZA, lw=1, zorder=1)
+ax.scatter(s.dif_exploracao, yy, color=AZUL, s=30, zorder=3, label="2013–2026 (exploração)")
+ax.scatter(s.dif_validacao, yy, color=LARANJA, marker="D", s=26, zorder=3, label="2003–2012 (validação fora da amostra)")
+ax.set_yticks(yy)
+ax.set_yticklabels([nomes[c] for c in s.index], fontsize=8)
+ax.set_xlabel("Crescimento anual médio na alta da Selic menos no corte (p.p.)")
+ax.set_title("Exposição ao juro — crescimento em ciclos de alta vs. corte da Selic", fontsize=10)
+ax.legend(loc="lower right", fontsize=8, frameon=False)
+salvar(fig, "fig7_ciclos_juros.png")
+
+# mapa de risco: cor = escore padronizado; texto = valor na unidade original
+z = mapa[zcols].astype(float).values
+fig, ax = plt.subplots(figsize=(10.5, 7.6))
+im = ax.imshow(z, cmap="RdYlGn_r", vmin=-2.5, vmax=2.5, aspect="auto")
+txt_folga = lambda v: f"{abs(v):.0f}% {'abaixo' if v > 0 else 'acima'}"
+fmt_ = [txt_folga, "{:.1f}".format, "{:+.1f}".format, "{:+.2f}".format]
+for i, (c, r) in enumerate(mapa.iterrows()):
+    for j, col in enumerate(DIMS):
+        ax.text(j, i, fmt_[j](r[col]), ha="center", va="center", fontsize=7.5, color="black")
+ax.set_xticks(range(4))
+ax.set_xticklabels(["Folga\nvs. 2019", "Instabilidade\n(desvio-padrão,\np.p.)", "Exposição ao juro\n(p.p. a menos\nna alta da Selic)", "Exposição ao câmbio\n(p.p. a menos por\n1% de desvalorização)"], fontsize=8)
+ax.xaxis.tick_top()
+ax.set_yticks(range(len(mapa)))
+ax.set_yticklabels([f"{int(r.ranking):>2}. {r.atividade} ({r.faixa})" for _, r in mapa.iterrows()], fontsize=8)
+for lim in (7.5, 15.5):
+    ax.axhline(lim, color="black", lw=1.2)
+fig.colorbar(im, ax=ax, shrink=.6).set_label("Escore padronizado (vermelho = mais risco)")
+ax.set_title("Mapa de risco setorial — divisões ordenadas pelo índice (média dos 4 escores)", fontsize=10, pad=48)
+salvar(fig, "fig8_mapa_risco.png")
 
 fig, ax = plt.subplots(figsize=(10, 5.6))
 ax.axis("off")

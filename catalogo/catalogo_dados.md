@@ -48,3 +48,18 @@ O **domínio esperado** é declarado a priori, pelo significado do dado (regras 
 | `selic_real_aa` | numérico (% a.a.) | Juro real ex-post: (1+Selic)/(1+IPCA 12m) − 1. | -15 a 30 | -4.44 a 12.95 | Admite nulo (quando IPCA 12m é nulo) | 1 | Calculada no ETL (R7) a partir de selic_aa e ipca_12m. |
 | `var_cambial_12m_pct` | numérico (%) | Variação % do dólar médio frente ao mesmo mês do ano anterior (positivo = real desvalorizado). | ≥ -100 | -26.90 a 67.45 | Admite nulo (12 primeiros meses e mês corrente) | 13 | Calculada no ETL (R8). |
 | `flag_tem_producao` | booleano (0/1) | 1 quando o mês também existe na PIM-PF (R9). | 0, 1 | 0 a 1 | Obrigatório | 0 | Derivado no ETL. |
+
+## mapa_risco
+
+| Atributo | Tipo | Descrição | Domínio esperado | Domínio observado | Obrigatoriedade | Nulos | Linhagem |
+|---|---|---|---|---|---|---|---|
+| `sk_atividade` | inteiro (FK) | Divisão avaliada. | 4 a 27 | 4 a 27 | Obrigatório | 0 | FK para dim_atividade. Gerada por scripts/analise.py (camada de consumo). |
+| `codigo` | categórico (texto) | Código CNAE da divisão. | 24 valores (3.10, 3.11, 3.12, …) | 24 categorias (ex.: 3.10, 3.11, 3.12, 3.13, …) | Obrigatório | 0 | Copiado de dim_atividade. |
+| `atividade` | texto | Nome curto da divisão. | texto livre | texto livre (24 valores distintos) | Obrigatório | 0 | scripts/dominios.py (NOMES_CURTOS). |
+| `folga_pp` | numérico (%) | Dimensão Folga: quanto a produção dos últimos 12 meses está abaixo da média de 2019 (negativo = acima). | -100 a 100 | -38.39 a 33.07 | Obrigatório | 0 | fato_producao.indice; média 2019 vs. últimos 12 meses. |
+| `instabilidade_pp` | numérico (p.p.) | Dimensão Instabilidade: desvio-padrão do crescimento anual, 2013–2026, sem a pandemia. | ≥ 0 | 4.39 a 19.59 | Obrigatório | 0 | fato_producao.var_yoy_pct. |
+| `expos_juro_pp` | numérico (p.p.) | Dimensão Exposição ao juro: quanto o crescimento anual médio é menor em ciclos de alta da Selic (Selic > 12 meses antes) do que em ciclos de corte, 2003–2026. | -50 a 50 | -4.91 a 12.88 | Obrigatório | 0 | fato_producao.var_yoy_pct e fato_macro.selic_aa. |
+| `expos_cambio_pp` | numérico (p.p.) | Dimensão Exposição ao câmbio: menos o coeficiente da variação cambial de 12 meses na regressão com juro real (p.p. a menos por 1% de desvalorização). | -5 a 5 | 0.01 a 0.45 | Obrigatório | 0 | fato_producao.var_yoy_pct e fato_macro.var_cambial_12m_pct; OLS com erros de Newey-West. |
+| `indice_risco` | numérico | Média simples dos escores padronizados (z) das quatro dimensões. | -5 a 5 | -0.93 a 1.70 | Obrigatório | 0 | Calculado em scripts/analise.py. |
+| `ranking` | inteiro | Posição no índice (1 = maior risco). | 1 a 24 | 1 a 24 | Obrigatório | 0 | Ordenação de indice_risco. |
+| `faixa` | categórico | Terço do ranking: alto (1–8), médio (9–16), baixo (17–24). | alto, médio, baixo | alto, baixo, médio | Obrigatório | 0 | Derivado de ranking. |

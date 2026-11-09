@@ -1,0 +1,5 @@
+,folga_pp,instabilidade_pp,expos_juro_pp,expos_cambio_pp
+folga_pp,1.0,-0.04,0.21,0.23
+instabilidade_pp,-0.04,1.0,0.17,0.65
+expos_juro_pp,0.21,0.17,1.0,0.43
+expos_cambio_pp,0.23,0.65,0.43,1.0

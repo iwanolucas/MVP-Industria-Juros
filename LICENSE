@@ -32,7 +32,7 @@ DADOS
   citação obrigatória da fonte. Não foi localizada licença aberta formal específica.
 
 BASES DERIVADAS
-As tabelas em data/processed (dimensões, fatos e dw_industria.sqlite) combinam as duas fontes
+As tabelas em data/processed (dimensões, fatos e resultados, em CSV) combinam as duas fontes
 acima. Por exigência da ODbL, a parte derivada das séries do BCB é disponibilizada sob a ODbL
 v1.0, com atribuição: "Contém dados do Banco Central do Brasil (SGS), sob ODbL". Os dados do
 IBGE devem ser citados como "Fonte: IBGE, PIM-PF, tabela 8888".

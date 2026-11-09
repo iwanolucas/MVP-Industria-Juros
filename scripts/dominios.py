@@ -71,6 +71,21 @@ DOMINIOS = {
 }
 
 
+# Tabela de consumo gerada pela análise (fora do teste de qualidade da carga, que roda antes dela existir).
+DOMINIOS_CONSUMO = {
+    ("mapa_risco", "sk_atividade"): ("faixa", 4, 27, "Só divisões da transformação (chaves 4 a 27)."),
+    ("mapa_risco", "codigo"): ("lista", [c for c in CODIGOS if c.startswith("3.")], "Divisões 3.10 a 3.33."),
+    ("mapa_risco", "atividade"): ("texto", None, "Nome curto da divisão."),
+    ("mapa_risco", "folga_pp"): ("faixa", -100, 100, "% abaixo da média de 2019 (negativo = acima)."),
+    ("mapa_risco", "instabilidade_pp"): ("faixa", 0, None, "Desvio-padrão: não negativo."),
+    ("mapa_risco", "expos_juro_pp"): ("faixa", -50, 50, "Diferença de crescimento anual entre ciclos, em p.p."),
+    ("mapa_risco", "expos_cambio_pp"): ("faixa", -5, 5, "Coeficiente por 1% de desvalorização, em p.p."),
+    ("mapa_risco", "indice_risco"): ("faixa", -5, 5, "Média de escores padronizados."),
+    ("mapa_risco", "ranking"): ("faixa", 1, 24, "Posição no índice (1 = maior risco)."),
+    ("mapa_risco", "faixa"): ("lista", ["alto", "médio", "baixo"], "Terços do ranking."),
+}
+
+
 def texto_dominio(regra):
     tipo = regra[0]
     if tipo == "faixa":

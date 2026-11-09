@@ -7,7 +7,9 @@ import sys
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from dominios import DOMINIOS, texto_dominio  # noqa: E402
+from dominios import DOMINIOS, DOMINIOS_CONSUMO, texto_dominio  # noqa: E402
+
+DOMINIOS = {**DOMINIOS, **DOMINIOS_CONSUMO}
 
 ROOT = Path(__file__).resolve().parents[1]
 con = sqlite3.connect(ROOT / "data" / "processed" / "dw_industria.sqlite")
@@ -43,6 +45,16 @@ META = [
     ("fato_macro", "selic_real_aa", "numérico (% a.a.)", "Juro real ex-post: (1+Selic)/(1+IPCA 12m) − 1.", "Admite nulo (quando IPCA 12m é nulo)", "Calculada no ETL (R7) a partir de selic_aa e ipca_12m."),
     ("fato_macro", "var_cambial_12m_pct", "numérico (%)", "Variação % do dólar médio frente ao mesmo mês do ano anterior (positivo = real desvalorizado).", "Admite nulo (12 primeiros meses e mês corrente)", "Calculada no ETL (R8)."),
     ("fato_macro", "flag_tem_producao", "booleano (0/1)", "1 quando o mês também existe na PIM-PF (R9).", "Obrigatório", "Derivado no ETL."),
+    ("mapa_risco", "sk_atividade", "inteiro (FK)", "Divisão avaliada.", "Obrigatório", "FK para dim_atividade. Gerada por scripts/analise.py (camada de consumo)."),
+    ("mapa_risco", "codigo", "categórico (texto)", "Código CNAE da divisão.", "Obrigatório", "Copiado de dim_atividade."),
+    ("mapa_risco", "atividade", "texto", "Nome curto da divisão.", "Obrigatório", "scripts/dominios.py (NOMES_CURTOS)."),
+    ("mapa_risco", "folga_pp", "numérico (%)", "Dimensão Folga: quanto a produção dos últimos 12 meses está abaixo da média de 2019 (negativo = acima).", "Obrigatório", "fato_producao.indice; média 2019 vs. últimos 12 meses."),
+    ("mapa_risco", "instabilidade_pp", "numérico (p.p.)", "Dimensão Instabilidade: desvio-padrão do crescimento anual, 2013–2026, sem a pandemia.", "Obrigatório", "fato_producao.var_yoy_pct."),
+    ("mapa_risco", "expos_juro_pp", "numérico (p.p.)", "Dimensão Exposição ao juro: quanto o crescimento anual médio é menor em ciclos de alta da Selic (Selic > 12 meses antes) do que em ciclos de corte, 2003–2026.", "Obrigatório", "fato_producao.var_yoy_pct e fato_macro.selic_aa."),
+    ("mapa_risco", "expos_cambio_pp", "numérico (p.p.)", "Dimensão Exposição ao câmbio: menos o coeficiente da variação cambial de 12 meses na regressão com juro real (p.p. a menos por 1% de desvalorização).", "Obrigatório", "fato_producao.var_yoy_pct e fato_macro.var_cambial_12m_pct; OLS com erros de Newey-West."),
+    ("mapa_risco", "indice_risco", "numérico", "Média simples dos escores padronizados (z) das quatro dimensões.", "Obrigatório", "Calculado em scripts/analise.py."),
+    ("mapa_risco", "ranking", "inteiro", "Posição no índice (1 = maior risco).", "Obrigatório", "Ordenação de indice_risco."),
+    ("mapa_risco", "faixa", "categórico", "Terço do ranking: alto (1–8), médio (9–16), baixo (17–24).", "Obrigatório", "Derivado de ranking."),
 ]
 
 linhas = []
