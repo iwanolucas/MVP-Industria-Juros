@@ -33,9 +33,8 @@ ALUNO = "Lucas Vilas Boas Iwano — matrícula 221021017"
 
 
 def _renumera_nuvem(txt):
-    """As figuras da nuvem eram 7–13 (vinham depois das de análise na numeração antiga, mas aparecem antes no texto).
-    Numeração atual, por ordem de aparição: 1 = modelo de dados, 2–8 = nuvem, 9–14 = análise."""
-    return re.sub(r"Figura (\d+)", lambda m: f"Figura {int(m.group(1)) - 5}" if 7 <= int(m.group(1)) <= 13 else m.group(0), txt)
+    """As figuras da nuvem já vêm numeradas (2–10) em evidencias/nuvem_status.json."""
+    return txt
 
 
 if NUVEM.get("executado"):
@@ -230,10 +229,10 @@ tb(["Dimensão", "Verificação", "Resultado", "Tratamento"], [
     ["Atualidade", "Defasagem entre fontes", f"PIM-PF vai até jul/2026; o BCB, até {R['q_macro_ultimo_mes'][:7].replace('-', '/')} (defasagem de {R['q_defasagem_pim_vs_macro_meses']} meses). O último mês do BCB é parcial.",
      "Junção por interseção (R9); o cenário de corte de juros (P3) usa o último juro real completo (ago./2026)."],
 ])
-im(EVID / "fig6_qualidade_ausencias.png", "Figura 9 — Meses sem informação no IBGE: apenas as divisões 3.18 e 3.33, antes de 2012.")
-p("Ressalva importante: o índice não tem ajuste sazonal. A série industrial oscila fortemente entre meses por sazonalidade (Figura 10), o que torna inadequada a comparação mês a mês. "
+im(EVID / "fig6_qualidade_ausencias.png", "Figura 11 — Meses sem informação no IBGE: apenas as divisões 3.18 e 3.33, antes de 2012.")
+p("Ressalva importante: o índice não tem ajuste sazonal. A série industrial oscila fortemente entre meses por sazonalidade (Figura 12), o que torna inadequada a comparação mês a mês. "
   "Por isso toda a análise usa variação contra o mesmo mês do ano anterior, que elimina a sazonalidade, e médias de 12 meses.")
-im(EVID / "fig1_industria_e_juro_real.png", "Figura 10 — Produção industrial (índice sem ajuste sazonal) e juro real ex-post, 2002–2026.")
+im(EVID / "fig1_industria_e_juro_real.png", "Figura 12 — Produção industrial (índice sem ajuste sazonal) e juro real ex-post, 2002–2026.")
 p(f"Amostra de análise. Para instabilidade (P2), nível do juro (P3) e câmbio (P4) usa-se janeiro/2013 a julho/2026, excluindo mar/2020–jun/2021: {R['amostra_meses']} meses, comum às 27 atividades. "
   "O corte em 2013 é o primeiro mês em que as duas divisões de série curta têm variação anual; a exclusão da pandemia evita que um único choque de +900% domine correlações e regressões. "
   "A análise de ciclos de juros (P3) usa também 2003–2012, para a validação fora da amostra, com as 22 divisões que já eram publicadas.")
@@ -242,8 +241,8 @@ h2("5.2 P1 — Folga: recuperação em relação a 2019")
 p(f"O agregado voltou: a indústria geral produz hoje (média dos últimos 12 meses) {f((P1r['geral_razao'] - 1) * 100)}% acima da média de 2019, com queda máxima de "
   f"{f(abs(P1r['geral_queda_2020']), 0)}% no fundo de 2020 e retorno sustentado ao patamar de 2019 em {f(P1r['geral_meses'], 0)} meses. As extrativas estão "
   f"{f((P1r['extrativas'] - 1) * 100)}% acima, e a indústria de transformação, {f((P1r['transformacao'] - 1) * 100)}% acima. "
-  f"A média, porém, esconde a divisão: das {P1r['n_divisoes']} divisões da transformação, {P1r['abaixo']} ainda estão abaixo de 2019 e {P1r['acima']} acima (Figura 11).")
-im(EVID / "fig2_P1_recuperacao_pre_pandemia.png", "Figura 11 — Folga: produção dos últimos 12 meses vs. média de 2019, por divisão (P1).")
+  f"A média, porém, esconde a divisão: das {P1r['n_divisoes']} divisões da transformação, {P1r['abaixo']} ainda estão abaixo de 2019 e {P1r['acima']} acima (Figura 13).")
+im(EVID / "fig2_P1_recuperacao_pre_pandemia.png", "Figura 13 — Folga: produção dos últimos 12 meses vs. média de 2019, por divisão (P1).")
 sel = P1[P1.codigo.str.startswith("3.")].sort_values("razao_ult12m_2019")
 linhas = pd.concat([sel.head(5), sel.tail(5)])
 tb(["Cód.", "Divisão", "Atual vs. 2019", "Queda máx. 2020", "Meses p/ recuperar"],
@@ -266,13 +265,13 @@ p(f"Resposta a P2. A razão entre a divisão mais e a menos instável é de {f(s
 
 h2("5.4 P3 — Exposição ao juro")
 p("A exposição ao juro foi medida de dois modos. O primeiro olha o nível do juro real; o segundo, a direção da Selic.")
-p("Nível do juro real. Para cada uma das 27 atividades calculou-se a correlação entre o crescimento anual em t e o juro real em t−k, para k de 0 a 12 meses (Figura 12). "
+p("Nível do juro real. Para cada uma das 27 atividades calculou-se a correlação entre o crescimento anual em t e o juro real em t−k, para k de 0 a 12 meses (Figura 14). "
   "Como a escolha do melhor k dentre 13 defasagens infla a chance de achar correlação por acaso, e as séries são autocorrelacionadas, a significância foi avaliada por um teste de "
   f"permutação: o juro real é deslocado circularmente ({f(P2r['perm_n'], 0)} deslocamentos) e compara-se a correlação mais negativa observada com a distribuição do mínimo sobre as 13 defasagens. "
   f"Resultado: {P2r['n_significativas']} das {P2r['n_total']} séries têm p < 0,05; só {P2r['n_negativas']} correlações têm o sinal esperado, e a indústria geral tem correlação positiva "
   f"(+{f(P2r['geral']['r'], 2)}). O cenário de queda de 3 p.p. no juro real, aplicado aos coeficientes de uma regressão com erros de Newey-West, projeta {f(P5r['geral']['efeito'], 2)} p.p. "
   f"para a indústria geral (IC 95%: {f(P5r['geral']['ic'][0], 1)} a +{f(P5r['geral']['ic'][1], 1)}), indistinguível de zero. O nível do juro real não diferencia as divisões.")
-im(EVID / "fig3_P2_correlacao_por_defasagem.png", "Figura 12 — Nível do juro: correlação entre juro real defasado e crescimento anual, por divisão (P3).")
+im(EVID / "fig3_P2_correlacao_por_defasagem.png", "Figura 14 — Nível do juro: correlação entre juro real defasado e crescimento anual, por divisão (P3).")
 C = R["CICLOS"]
 p(f"Direção da Selic. Um mês é de ciclo de alta quando a Selic está acima da de 12 meses antes. De 2003 a 2026 houve sete ciclos de alta ({C['meses_alta_completo']} dos "
   f"{C['meses_completo']} meses analisados, sem a pandemia). Para cada divisão, compara-se o crescimento anual médio nos meses de alta com o dos meses de corte, com a mesma "
@@ -284,7 +283,7 @@ tb(["Período", "Divisões", "Crescem menos na alta", "Negativas significativas"
     ["2003–2012 (validação)", str(C["validacao"]["n_div"]), str(C["validacao"]["n_negativas"]), str(C["validacao"]["n_neg_sig"]), str(C["validacao"]["n_pos_sig"]), f(C["validacao"]["geral"]["dif"], 1)],
     ["2003–2026 (completo)", str(C["completo"]["n_div"]), str(C["completo"]["n_negativas"]), str(C["completo"]["n_neg_sig"]), str(C["completo"]["n_pos_sig"]), f(C["completo"]["geral"]["dif"], 1)],
 ])
-im(EVID / "fig7_ciclos_juros.png", "Figura 13 — Direção da Selic: crescimento anual na alta menos no corte, nos dois períodos independentes (P3).")
+im(EVID / "fig7_ciclos_juros.png", "Figura 15 — Direção da Selic: crescimento anual na alta menos no corte, nos dois períodos independentes (P3).")
 tb(["Divisão (significativa na exploração)", "2013–2026 (p.p.)", "2003–2012 (p.p.)", "p em 2003–2012"],
    [[n, f(e, 1), f(v, 1), f(pv, 3)] for _, n, e, v, pv in C["alvos"]])
 p(f"Resposta a P3. O nível do juro real não explica o crescimento de nenhuma divisão. A direção da Selic explica parte: em ciclos de alta, {C['completo']['n_negativas']} das "
@@ -296,8 +295,8 @@ p(f"Resposta a P3. O nível do juro real não explica o crescimento de nenhuma d
 
 h2("5.5 P4 — Exposição ao câmbio")
 p("Para cada atividade estimou-se por mínimos quadrados o crescimento anual contra o juro real defasado e a variação cambial de 12 meses, com erros-padrão robustos a autocorrelação e "
-  "heterocedasticidade (Newey-West, 12 defasagens). A Figura 14 mostra os coeficientes com intervalos de 95%.")
-im(EVID / "fig4_P3_coeficientes.png", "Figura 14 — Exposição ao câmbio: coeficientes do juro real e da variação cambial por divisão (P4).")
+  "heterocedasticidade (Newey-West, 12 defasagens). A Figura 16 mostra os coeficientes com intervalos de 95%.")
+im(EVID / "fig4_P3_coeficientes.png", "Figura 16 — Exposição ao câmbio: coeficientes do juro real e da variação cambial por divisão (P4).")
 cn = P3r["cambio_neg_sig"]
 tb(["Atividade", "β câmbio (p.p. por 1% de desvalorização)", "estatística t"],
    [[f"{c} {n}", f"{b:+.2f}".replace(".", ","), f"{t:+.2f}".replace(".", ",")] for c, n, b, t in cn] +
@@ -312,7 +311,7 @@ M = R["MAPA"]
 p("Cada dimensão foi transformada em escore padronizado (z) entre as 24 divisões, com sinal tal que valor maior significa mais risco: folga (quanto abaixo de 2019), instabilidade "
   "(desvio-padrão), exposição ao juro (quanto cresce a menos na alta da Selic) e exposição ao câmbio (quanto cresce a menos por 1% de desvalorização). O índice é a média simples dos "
   "quatro escores, o critério mais transparente na ausência de uma razão para pesar uma fonte de risco acima da outra. As divisões são divididas em três faixas de oito.")
-im(EVID / "fig8_mapa_risco.png", "Figura 15 — Mapa de risco setorial: cor = escore padronizado de cada dimensão; texto = valor na unidade original (P5).")
+im(EVID / "fig8_mapa_risco.png", "Figura 17 — Mapa de risco setorial: cor = escore padronizado de cada dimensão; texto = valor na unidade original (P5).")
 tb(["#", "Divisão", "Faixa", "Índice", "Folga", "Instab.", "Juro", "Câmbio"],
    [[str(int(r.ranking)), r.atividade, r.faixa, f(r.indice_risco, 2),
      f"{abs(r.folga_pp):.0f}% {'abaixo' if r.folga_pp > 0 else 'acima'}", f(r.instabilidade_pp, 1), f(r.expos_juro_pp, 1), f(r.expos_cambio_pp, 2)]
@@ -362,7 +361,7 @@ p("Trabalhos futuros. Identificar o efeito do juro com choques monetários (VAR 
 h1("8. Reprodutibilidade")
 bl([
     "Local: python scripts/coleta.py → python scripts/etl.py → python scripts/analise.py → python scripts/gerar_catalogo.py → python scripts/gerar_relatorio.py. Dependências em requirements.txt. Semente aleatória fixa (42). O mapa de risco sai em data/processed/tab_mapa_risco.csv e na tabela mapa_risco do DW.",
-    "Databricks: criar uma Git folder com o repositório e executar notebooks/01, 02 e 03 em ordem. Os notebooks usam catalog workspace e schema industria_juros. O Free Edition não tem acesso à internet: o notebook 01 tenta a API e, se falhar, usa o bronze versionado em data/raw.",
+    "Databricks: criar uma Git folder com o repositório e executar notebooks/01, 02 e 03 em ordem. Os notebooks usam catalog workspace e schema industria_juros. O notebook 01 parte, por padrão, do bronze versionado em data/raw (o Free Edition não acessa a internet, e isso mantém os números reprodutíveis); para coletar de novo das APIs, use COLETAR_DAS_APIS = True.",
     f"Repositório: {REPO}",
     "Fontes: IBGE/SIDRA tabela 8888 (PIM-PF); BCB/SGS séries 4189, 433, 13522 e 3698.",
 ])

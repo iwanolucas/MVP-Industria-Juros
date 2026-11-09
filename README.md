@@ -74,7 +74,7 @@ Não houve web scraping: as duas fontes oferecem API oficial. A tabela 8888 da S
 
 ### 2.2 Persistência na nuvem
 
-Os dados brutos foram persistidos em um Volume do Unity Catalog (workspace.industria_juros.raw) no Databricks Free Edition e, após o ETL, em quatro tabelas Delta no mesmo esquema, às quais a análise soma a tabela de consumo mapa_risco (Seção 4.3). O ambiente Free Edition não tem acesso à internet: a chamada às APIs falhou por erro de resolução de DNS. O notebook 01 trata esse caso copiando o bronze versionado no repositório (data/raw), que foi coletado pelo mesmo script coleta.py em 28/09/2026, e o manifesto de coleta (com hash SHA-256) foi gravado junto.
+Os dados brutos foram persistidos em um Volume do Unity Catalog (workspace.industria_juros.raw) no Databricks Free Edition e, após o ETL, em quatro tabelas Delta no mesmo esquema, às quais a análise soma a tabela de consumo mapa_risco (Seção 4.3). O pipeline parte do bronze versionado no repositório (data/raw), coletado pelo script coleta.py em 28/09/2026 e conferido pelo manifesto com hash SHA-256: o Free Edition não acessa a internet, e partir do arquivo versionado torna cada execução reprodutível. A coleta direto das APIs continua disponível no notebook 01 (opção COLETAR_DAS_APIS).
 
 
 ## 3. Modelagem
@@ -178,19 +178,19 @@ Foram verificadas as integridades referencial (toda chave das fatos existe nas d
 
 ### 4.3 Execução na nuvem e persistência
 
-Execução realizada em 28/09/2026 no Databricks Free Edition (workspace da conta do aluno, compute serverless), a partir de uma Git folder ligada ao repositório público do GitHub. Os três notebooks foram executados em ordem e as capturas de tela estão referenciadas abaixo.
+Execução realizada em 09/11/2026 no Databricks Free Edition (compute serverless), a partir de uma Git folder ligada ao repositório público do GitHub. Os três notebooks foram executados em ordem, do Volume vazio até a tabela de consumo, e as capturas de tela estão referenciadas abaixo. Uma primeira execução, em 28/09/2026, havia mostrado que o Free Edition não resolve o DNS das APIs do IBGE e do BCB; por isso o notebook 01 copia o bronze versionado.
 
-Notebook 01 (bronze). O ambiente Free Edition não tem saída para a internet: a primeira execução falhou ao chamar a API do IBGE com erro de resolução de DNS ("Failed to resolve 'apisidra.ibge.gov.br'"). O notebook foi então alterado para tentar a API e, em caso de falha, copiar para o Volume o bronze versionado no repositório, que foi coletado pelo script coleta.py em 28/09/2026 (manifesto com URL, volume e SHA-256). Portanto, a coleta a partir das APIs ocorreu na máquina local, e a persistência na nuvem parte do arquivo bruto. A Figura 2 mostra os seis arquivos no Volume workspace.industria_juros.raw (o JSON da PIM-PF tem 1.650.738 bytes, igual ao manifesto).
+Notebook 01 (bronze). Os seis arquivos brutos foram gravados no Volume workspace.industria_juros.raw (Figura 2). O JSON da PIM-PF tem 1.650.738 bytes, igual ao registrado no manifesto de coleta, que aparece abaixo da listagem com URL, data e hash de cada arquivo.
 
-Notebook 02 (silver e gold). O ETL rodou dentro do Databricks e gravou as quatro tabelas Delta em workspace.industria_juros. As contagens de linhas são idênticas às da execução local: dim_tempo 297, dim_atividade 27, fato_producao 7.965 e fato_macro 297 (Figura 3). O DESCRIBE HISTORY da fato_producao mostra a versão 0 criada por CREATE OR REPLACE TABLE AS SELECT, em 28/09/2026, pelo usuário da conta, o que comprova a persistência (Figura 4).
+Notebook 02 (silver e gold). O ETL rodou dentro do Databricks e gravou as quatro tabelas Delta em workspace.industria_juros. As contagens de linhas são idênticas às da execução local: dim_tempo 297, dim_atividade 27, fato_producao 7.965 e fato_macro 297 (Figura 3). O DESCRIBE HISTORY da fato_producao mostra a versão 0 criada por CREATE OR REPLACE TABLE AS SELECT em 09/11/2026, pelo usuário da conta, o que comprova a persistência (Figura 4).
 
-Notebook 03 (análise). As consultas SQL sobre as tabelas Delta reproduzem os resultados locais: a completude do índice (Figura 5) mostra 120 meses ausentes em 3.18 e 3.33; a dimensão Folga em SQL (Figura 6) dá −33,1% para Impressão e −27,0% para Vestuário, iguais aos do pandas; a dimensão Instabilidade em Spark SQL (Figura 7) dá desvios de 19,6, 17,0, 16,9 e 16,7 p.p. para Fumo, Informática, Veículos e Impressão. A execução de scripts/analise.py sobre as tabelas Delta reproduziu o teste de permutação do nível do juro (Figura 8): 2.000 permutações, 0 de 27 séries significativas, 11 correlações negativas, e Químicos com r = −0,211, defasagem de 2 meses e p = 0,209, valores idênticos aos da execução local (semente 42).
+Notebook 03 (análise). As consultas SQL sobre as tabelas Delta reproduzem os resultados locais. A completude do índice (Figura 5) mostra 120 meses ausentes em 3.18 e 3.33. A dimensão Folga (Figura 6) dá −33,1% para Impressão e −27,0% para Vestuário. A dimensão Instabilidade (Figura 7) dá desvios de 19,6, 17,0, 16,9 e 16,7 p.p. para Fumo, Informática, Veículos e Impressão. A exposição ao juro por ciclos, calculada em SQL com LAG sobre a Selic (Figura 8), dá −12,9 p.p. para Veículos, −12,1 para Informática e −9,3 para Móveis, os mesmos valores da execução local.
 
-As capturas são da execução de 28/09/2026, anterior à reorganização do trabalho em mapa de risco; nelas as consultas ainda têm os rótulos da primeira versão (P1, P4 e P2). A versão atual do notebook 03 acrescenta a consulta SQL da exposição ao juro por ciclos da Selic e grava o mapa como tabela Delta (workspace.industria_juros.mapa_risco). Localmente, a consulta SQL de ciclos reproduz o cálculo em Python com diferença máxima de 0,005 p.p., só de arredondamento.
+Em seguida, scripts/analise.py rodou sobre as tabelas Delta e reproduziu, com a mesma semente, o teste de ciclos (Figura 9: no período completo, 21 de 24 divisões crescem menos na alta da Selic, 6 com significância, e a indústria geral cresce 3,48 p.p. a menos, p = 0,040). O notebook gravou o mapa de risco como tabela Delta workspace.industria_juros.mapa_risco (Figura 10), com o mesmo ranking da execução local: Informática e eletrônicos, Veículos e Impressão nas três primeiras posições.
 
-![Figura 2 — Notebook 01: arquivos brutos no Volume workspace.industria_juros.raw.](evidencias/nuvem_01_bronze_volume.jpg)
+![Figura 2 — Notebook 01: arquivos brutos no Volume workspace.industria_juros.raw e início do manifesto de coleta.](evidencias/nuvem_01_bronze_volume.jpg)
 
-*Figura 2 — Notebook 01: arquivos brutos no Volume workspace.industria_juros.raw.*
+*Figura 2 — Notebook 01: arquivos brutos no Volume workspace.industria_juros.raw e início do manifesto de coleta.*
 
 ![Figura 3 — Notebook 02: contagem das quatro tabelas Delta após a carga.](evidencias/nuvem_02_tabelas_delta_contagem.jpg)
 
@@ -204,17 +204,25 @@ As capturas são da execução de 28/09/2026, anterior à reorganização do tra
 
 *Figura 5 — Notebook 03: qualidade do índice por atividade, em SQL sobre o Delta.*
 
-![Figura 6 — Notebook 03: dimensão Folga em SQL (variação vs. média de 2019).](evidencias/nuvem_03_P1_recuperacao_sql.jpg)
+![Figura 6 — Notebook 03: dimensão Folga em SQL (variação vs. média de 2019).](evidencias/nuvem_03_folga_sql.jpg)
 
 *Figura 6 — Notebook 03: dimensão Folga em SQL (variação vs. média de 2019).*
 
-![Figura 7 — Notebook 03: dimensão Instabilidade em SQL (desvio-padrão do crescimento anual).](evidencias/nuvem_03_P4_volatilidade_sql.jpg)
+![Figura 7 — Notebook 03: dimensão Instabilidade em SQL (desvio-padrão do crescimento anual).](evidencias/nuvem_03_instabilidade_sql.jpg)
 
 *Figura 7 — Notebook 03: dimensão Instabilidade em SQL (desvio-padrão do crescimento anual).*
 
-![Figura 8 — Notebook 03: teste de permutação do nível do juro, executado sobre as tabelas Delta.](evidencias/nuvem_03_P2_analise_python.jpg)
+![Figura 8 — Notebook 03: exposição ao juro por ciclos da Selic, em SQL sobre o Delta.](evidencias/nuvem_03_ciclos_sql.jpg)
 
-*Figura 8 — Notebook 03: teste de permutação do nível do juro, executado sobre as tabelas Delta.*
+*Figura 8 — Notebook 03: exposição ao juro por ciclos da Selic, em SQL sobre o Delta.*
+
+![Figura 9 — Notebook 03: resumo do teste de ciclos calculado por scripts/analise.py sobre o Delta.](evidencias/nuvem_03_ciclos_python.jpg)
+
+*Figura 9 — Notebook 03: resumo do teste de ciclos calculado por scripts/analise.py sobre o Delta.*
+
+![Figura 10 — Notebook 03: tabela de consumo mapa_risco gravada em Delta, ordenada pelo ranking.](evidencias/nuvem_03_mapa_risco_delta.jpg)
+
+*Figura 10 — Notebook 03: tabela de consumo mapa_risco gravada em Delta, ordenada pelo ranking.*
 
 
 ### 4.4 Uso de recursos e custo de operação
@@ -278,26 +286,26 @@ Resultado atributo a atributo: 0 dos 26 atributos têm valores fora do domínio 
 | Acurácia | Outliers da variação anual (z robusto, em módulo, acima de 5) | 58 pontos, dos quais 48 em mar/2020–jun/2021 (choque e rebote: maior valor, veículos em abr/2021, +939% sobre a base do lockdown) e 10 fora dele. | A janela de pandemia é excluída das estatísticas (P2 a P4); os 10 pontos restantes são mantidos (variações reais de setores voláteis). |
 | Atualidade | Defasagem entre fontes | PIM-PF vai até jul/2026; o BCB, até 2026/09 (defasagem de 2 meses). O último mês do BCB é parcial. | Junção por interseção (R9); o cenário de corte de juros (P3) usa o último juro real completo (ago./2026). |
 
-![Figura 9 — Meses sem informação no IBGE: apenas as divisões 3.18 e 3.33, antes de 2012.](evidencias/fig6_qualidade_ausencias.png)
+![Figura 11 — Meses sem informação no IBGE: apenas as divisões 3.18 e 3.33, antes de 2012.](evidencias/fig6_qualidade_ausencias.png)
 
-*Figura 9 — Meses sem informação no IBGE: apenas as divisões 3.18 e 3.33, antes de 2012.*
+*Figura 11 — Meses sem informação no IBGE: apenas as divisões 3.18 e 3.33, antes de 2012.*
 
-Ressalva importante: o índice não tem ajuste sazonal. A série industrial oscila fortemente entre meses por sazonalidade (Figura 10), o que torna inadequada a comparação mês a mês. Por isso toda a análise usa variação contra o mesmo mês do ano anterior, que elimina a sazonalidade, e médias de 12 meses.
+Ressalva importante: o índice não tem ajuste sazonal. A série industrial oscila fortemente entre meses por sazonalidade (Figura 12), o que torna inadequada a comparação mês a mês. Por isso toda a análise usa variação contra o mesmo mês do ano anterior, que elimina a sazonalidade, e médias de 12 meses.
 
-![Figura 10 — Produção industrial (índice sem ajuste sazonal) e juro real ex-post, 2002–2026.](evidencias/fig1_industria_e_juro_real.png)
+![Figura 12 — Produção industrial (índice sem ajuste sazonal) e juro real ex-post, 2002–2026.](evidencias/fig1_industria_e_juro_real.png)
 
-*Figura 10 — Produção industrial (índice sem ajuste sazonal) e juro real ex-post, 2002–2026.*
+*Figura 12 — Produção industrial (índice sem ajuste sazonal) e juro real ex-post, 2002–2026.*
 
 Amostra de análise. Para instabilidade (P2), nível do juro (P3) e câmbio (P4) usa-se janeiro/2013 a julho/2026, excluindo mar/2020–jun/2021: 147 meses, comum às 27 atividades. O corte em 2013 é o primeiro mês em que as duas divisões de série curta têm variação anual; a exclusão da pandemia evita que um único choque de +900% domine correlações e regressões. A análise de ciclos de juros (P3) usa também 2003–2012, para a validação fora da amostra, com as 22 divisões que já eram publicadas.
 
 
 ### 5.2 P1 — Folga: recuperação em relação a 2019
 
-O agregado voltou: a indústria geral produz hoje (média dos últimos 12 meses) 3,0% acima da média de 2019, com queda máxima de 31% no fundo de 2020 e retorno sustentado ao patamar de 2019 em 4 meses. As extrativas estão 10,3% acima, e a indústria de transformação, 1,5% acima. A média, porém, esconde a divisão: das 24 divisões da transformação, 13 ainda estão abaixo de 2019 e 11 acima (Figura 11).
+O agregado voltou: a indústria geral produz hoje (média dos últimos 12 meses) 3,0% acima da média de 2019, com queda máxima de 31% no fundo de 2020 e retorno sustentado ao patamar de 2019 em 4 meses. As extrativas estão 10,3% acima, e a indústria de transformação, 1,5% acima. A média, porém, esconde a divisão: das 24 divisões da transformação, 13 ainda estão abaixo de 2019 e 11 acima (Figura 13).
 
-![Figura 11 — Folga: produção dos últimos 12 meses vs. média de 2019, por divisão (P1).](evidencias/fig2_P1_recuperacao_pre_pandemia.png)
+![Figura 13 — Folga: produção dos últimos 12 meses vs. média de 2019, por divisão (P1).](evidencias/fig2_P1_recuperacao_pre_pandemia.png)
 
-*Figura 11 — Folga: produção dos últimos 12 meses vs. média de 2019, por divisão (P1).*
+*Figura 13 — Folga: produção dos últimos 12 meses vs. média de 2019, por divisão (P1).*
 
 | Cód. | Divisão | Atual vs. 2019 | Queda máx. 2020 | Meses p/ recuperar |
 |---|---|---|---|---|
@@ -326,11 +334,11 @@ Resposta a P2. A razão entre a divisão mais e a menos instável é de 4,5 veze
 
 A exposição ao juro foi medida de dois modos. O primeiro olha o nível do juro real; o segundo, a direção da Selic.
 
-Nível do juro real. Para cada uma das 27 atividades calculou-se a correlação entre o crescimento anual em t e o juro real em t−k, para k de 0 a 12 meses (Figura 12). Como a escolha do melhor k dentre 13 defasagens infla a chance de achar correlação por acaso, e as séries são autocorrelacionadas, a significância foi avaliada por um teste de permutação: o juro real é deslocado circularmente (2.000 deslocamentos) e compara-se a correlação mais negativa observada com a distribuição do mínimo sobre as 13 defasagens. Resultado: 0 das 27 séries têm p < 0,05; só 11 correlações têm o sinal esperado, e a indústria geral tem correlação positiva (+0,19). O cenário de queda de 3 p.p. no juro real, aplicado aos coeficientes de uma regressão com erros de Newey-West, projeta -0,31 p.p. para a indústria geral (IC 95%: -1,3 a +0,7), indistinguível de zero. O nível do juro real não diferencia as divisões.
+Nível do juro real. Para cada uma das 27 atividades calculou-se a correlação entre o crescimento anual em t e o juro real em t−k, para k de 0 a 12 meses (Figura 14). Como a escolha do melhor k dentre 13 defasagens infla a chance de achar correlação por acaso, e as séries são autocorrelacionadas, a significância foi avaliada por um teste de permutação: o juro real é deslocado circularmente (2.000 deslocamentos) e compara-se a correlação mais negativa observada com a distribuição do mínimo sobre as 13 defasagens. Resultado: 0 das 27 séries têm p < 0,05; só 11 correlações têm o sinal esperado, e a indústria geral tem correlação positiva (+0,19). O cenário de queda de 3 p.p. no juro real, aplicado aos coeficientes de uma regressão com erros de Newey-West, projeta -0,31 p.p. para a indústria geral (IC 95%: -1,3 a +0,7), indistinguível de zero. O nível do juro real não diferencia as divisões.
 
-![Figura 12 — Nível do juro: correlação entre juro real defasado e crescimento anual, por divisão (P3).](evidencias/fig3_P2_correlacao_por_defasagem.png)
+![Figura 14 — Nível do juro: correlação entre juro real defasado e crescimento anual, por divisão (P3).](evidencias/fig3_P2_correlacao_por_defasagem.png)
 
-*Figura 12 — Nível do juro: correlação entre juro real defasado e crescimento anual, por divisão (P3).*
+*Figura 14 — Nível do juro: correlação entre juro real defasado e crescimento anual, por divisão (P3).*
 
 Direção da Selic. Um mês é de ciclo de alta quando a Selic está acima da de 12 meses antes. De 2003 a 2026 houve sete ciclos de alta (129 dos 267 meses analisados, sem a pandemia). Para cada divisão, compara-se o crescimento anual médio nos meses de alta com o dos meses de corte, com a mesma permutação circular para a significância. A hipótese surgiu na exploração de 2013–2026; por isso foi testada em 2003–2012, período sem nenhum mês em comum, com o critério declarado antes: confirmar-se-ia se ao menos 4 das 6 divisões significativas na exploração mantivessem sinal negativo e se o número de divisões com efeito negativo significativo superasse o esperado por acaso.
 
@@ -340,9 +348,9 @@ Direção da Selic. Um mês é de ciclo de alta quando a Selic está acima da de
 | 2003–2012 (validação) | 22 | 18 | 1 | 0 | -2,5 |
 | 2003–2026 (completo) | 24 | 21 | 6 | 0 | -3,5 |
 
-![Figura 13 — Direção da Selic: crescimento anual na alta menos no corte, nos dois períodos independentes (P3).](evidencias/fig7_ciclos_juros.png)
+![Figura 15 — Direção da Selic: crescimento anual na alta menos no corte, nos dois períodos independentes (P3).](evidencias/fig7_ciclos_juros.png)
 
-*Figura 13 — Direção da Selic: crescimento anual na alta menos no corte, nos dois períodos independentes (P3).*
+*Figura 15 — Direção da Selic: crescimento anual na alta menos no corte, nos dois períodos independentes (P3).*
 
 | Divisão (significativa na exploração) | 2013–2026 (p.p.) | 2003–2012 (p.p.) | p em 2003–2012 |
 |---|---|---|---|
@@ -358,11 +366,11 @@ Resposta a P3. O nível do juro real não explica o crescimento de nenhuma divis
 
 ### 5.5 P4 — Exposição ao câmbio
 
-Para cada atividade estimou-se por mínimos quadrados o crescimento anual contra o juro real defasado e a variação cambial de 12 meses, com erros-padrão robustos a autocorrelação e heterocedasticidade (Newey-West, 12 defasagens). A Figura 14 mostra os coeficientes com intervalos de 95%.
+Para cada atividade estimou-se por mínimos quadrados o crescimento anual contra o juro real defasado e a variação cambial de 12 meses, com erros-padrão robustos a autocorrelação e heterocedasticidade (Newey-West, 12 defasagens). A Figura 16 mostra os coeficientes com intervalos de 95%.
 
-![Figura 14 — Exposição ao câmbio: coeficientes do juro real e da variação cambial por divisão (P4).](evidencias/fig4_P3_coeficientes.png)
+![Figura 16 — Exposição ao câmbio: coeficientes do juro real e da variação cambial por divisão (P4).](evidencias/fig4_P3_coeficientes.png)
 
-*Figura 14 — Exposição ao câmbio: coeficientes do juro real e da variação cambial por divisão (P4).*
+*Figura 16 — Exposição ao câmbio: coeficientes do juro real e da variação cambial por divisão (P4).*
 
 | Atividade | β câmbio (p.p. por 1% de desvalorização) | estatística t |
 |---|---|---|
@@ -381,9 +389,9 @@ Resposta a P4. O câmbio tem associação significativa em 9 das 27 atividades, 
 
 Cada dimensão foi transformada em escore padronizado (z) entre as 24 divisões, com sinal tal que valor maior significa mais risco: folga (quanto abaixo de 2019), instabilidade (desvio-padrão), exposição ao juro (quanto cresce a menos na alta da Selic) e exposição ao câmbio (quanto cresce a menos por 1% de desvalorização). O índice é a média simples dos quatro escores, o critério mais transparente na ausência de uma razão para pesar uma fonte de risco acima da outra. As divisões são divididas em três faixas de oito.
 
-![Figura 15 — Mapa de risco setorial: cor = escore padronizado de cada dimensão; texto = valor na unidade original (P5).](evidencias/fig8_mapa_risco.png)
+![Figura 17 — Mapa de risco setorial: cor = escore padronizado de cada dimensão; texto = valor na unidade original (P5).](evidencias/fig8_mapa_risco.png)
 
-*Figura 15 — Mapa de risco setorial: cor = escore padronizado de cada dimensão; texto = valor na unidade original (P5).*
+*Figura 17 — Mapa de risco setorial: cor = escore padronizado de cada dimensão; texto = valor na unidade original (P5).*
 
 | # | Divisão | Faixa | Índice | Folga | Instab. | Juro | Câmbio |
 |---|---|---|---|---|---|---|---|
@@ -447,6 +455,6 @@ Trabalhos futuros. Identificar o efeito do juro com choques monetários (VAR est
 ## 8. Reprodutibilidade
 
 - Local: python scripts/coleta.py → python scripts/etl.py → python scripts/analise.py → python scripts/gerar_catalogo.py → python scripts/gerar_relatorio.py. Dependências em requirements.txt. Semente aleatória fixa (42). O mapa de risco sai em data/processed/tab_mapa_risco.csv e na tabela mapa_risco do DW.
-- Databricks: criar uma Git folder com o repositório e executar notebooks/01, 02 e 03 em ordem. Os notebooks usam catalog workspace e schema industria_juros. O Free Edition não tem acesso à internet: o notebook 01 tenta a API e, se falhar, usa o bronze versionado em data/raw.
+- Databricks: criar uma Git folder com o repositório e executar notebooks/01, 02 e 03 em ordem. Os notebooks usam catalog workspace e schema industria_juros. O notebook 01 parte, por padrão, do bronze versionado em data/raw (o Free Edition não acessa a internet, e isso mantém os números reprodutíveis); para coletar de novo das APIs, use COLETAR_DAS_APIS = True.
 - Repositório: https://github.com/iwanolucas/MVP-Industria-Juros
 - Fontes: IBGE/SIDRA tabela 8888 (PIM-PF); BCB/SGS séries 4189, 433, 13522 e 3698.
