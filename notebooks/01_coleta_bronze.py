@@ -15,16 +15,30 @@ RAW = f"/Volumes/{CATALOGO}/{ESQUEMA}/raw"
 
 import os, sys, runpy, shutil, glob
 raiz = os.path.abspath(os.path.join(os.getcwd(), ".."))          # raiz do repositório na Git folder
-sys.argv = ["coleta.py", RAW]
-try:
-    runpy.run_path(os.path.join(raiz, "scripts", "coleta.py"), run_name="__main__")
-    print("Coleta via API concluída.")
-except Exception as e:
-    # O Databricks Free Edition não tem saída para a internet (falha de DNS). Nesse caso usa-se o bronze
-    # versionado no repositório (data/raw), coletado pelo mesmo script em 28/09/2026 (ver _manifesto_coleta.json).
-    print(f"API inacessível neste ambiente ({type(e).__name__}); copiando o bronze versionado do repositório.")
+
+# Por padrão o pipeline parte do bronze versionado no repositório (data/raw, coletado por scripts/coleta.py em
+# 28/09/2026, com hash SHA-256 no _manifesto_coleta.json). Isso torna a execução reprodutível: os números do
+# relatório não mudam a cada rodada. Para coletar de novo das APIs (requer internet e atualiza os dados), use True.
+COLETAR_DAS_APIS = False
+
+
+def copiar_bronze_versionado():
     for arq in glob.glob(os.path.join(raiz, "data", "raw", "*.json")):
         shutil.copy(arq, RAW)
+    print("Bronze versionado copiado para o Volume.")
+
+
+if COLETAR_DAS_APIS:
+    sys.argv = ["coleta.py", RAW]
+    try:
+        runpy.run_path(os.path.join(raiz, "scripts", "coleta.py"), run_name="__main__")
+        print("Coleta via API concluída.")
+    except Exception as e:
+        # O Databricks Free Edition não tem saída para a internet (falha de DNS em 28/09/2026).
+        print(f"API inacessível neste ambiente ({type(e).__name__}).")
+        copiar_bronze_versionado()
+else:
+    copiar_bronze_versionado()
 
 # COMMAND ----------
 
