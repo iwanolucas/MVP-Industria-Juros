@@ -104,7 +104,7 @@
   "q_macro_ultimo_mes": "2026-09-01",
   "q_defasagem_pim_vs_macro_meses": 2,
   "amostra_meses": 147,
-  "P1": {
+  "FOLGA": {
     "n_divisoes": 24,
     "abaixo": 13,
     "acima": 11,
@@ -176,7 +176,7 @@
     ],
     "mediana_meses": 4.0
   },
-  "P2": {
+  "JURO_NIVEL": {
     "perm_n": 2000,
     "n_significativas": 0,
     "n_total": 27,
@@ -243,7 +243,7 @@
     "lag_mediano_divisoes": 0.0,
     "significativas": []
   },
-  "P3": {
+  "CAMBIO": {
     "cambio_pos_sig": [],
     "cambio_neg_sig": [
       [
@@ -299,7 +299,7 @@
     "r2_max_cod": "3.22",
     "r2_max_nome": "Borracha e plástico"
   },
-  "P4": {
+  "INSTABILIDADE": {
     "mais_volateis": [
       [
         "3.12",
@@ -358,12 +358,12 @@
     "razao_max_min": 4.464905155528472,
     "corr_beta_vol": 0.20626498207046504
   },
-  "P5_juro_real_atual_pct": 9.32642487046631,
-  "P5_ult_mes_juro_real": "2026-08-01",
-  "P5_juro_real_media_hist_pct": 5.4702527869470225,
-  "P5_selic_atual": 13.79,
-  "P5_ipca12m_atual": 4.22,
-  "P5": {
+  "cenario_juro_real_atual_pct": 9.32642487046631,
+  "cenario_ult_mes_juro_real": "2026-08-01",
+  "cenario_juro_real_media_hist_pct": 5.4702527869470225,
+  "cenario_selic_atual": 13.79,
+  "cenario_ipca12m_atual": 4.22,
+  "JURO_CENARIO": {
     "delta_pp": -3.0,
     "geral": {
       "efeito": -0.3075167614482376,

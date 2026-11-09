@@ -1,4 +1,7 @@
-"""Análise (qualidade de dados + perguntas P1–P5). Lê o DW SQLite gerado por etl.py.
+"""Análise: qualidade de dados e mapa de risco setorial (P1 Folga, P2 Instabilidade, P3 Exposição ao juro,
+P4 Exposição ao câmbio, P5 Síntese). Lê o DW SQLite gerado por etl.py (ou as tabelas Delta, no Databricks).
+Nota: as variáveis internas p1…p5 vêm da primeira versão (p2 = nível do juro, p3 = câmbio, p4 = instabilidade,
+p5 = cenário); os arquivos e as chaves de resultados.json usam os nomes atuais.
 
 Saídas: data/processed/resultados.json, data/processed/tab_*.csv, evidencias/*.png,
         catalogo/diagrama_estrela.png
@@ -148,7 +151,7 @@ def amostra(cod, cols):
     return d[(d.index >= AMOSTRA_INI) & fora_covid(d.index)]
 
 
-# ================================================================== P1: recuperação pré-pandemia
+# ================================================================== P1 Folga: recuperação frente a 2019
 base = df[df.ano == 2019].groupby("codigo").indice.mean()
 rec = df[df.data > df.data.max() - pd.DateOffset(months=12)].groupby("codigo").indice.mean()
 fundo = df[(df.data >= "2020-03-01") & (df.data <= "2020-07-01")].groupby("codigo").indice.min()
@@ -168,9 +171,9 @@ def meses_recup(cod):
 
 p1["meses_ate_recuperar"] = [meses_recup(c) for c in p1.index]
 p1 = p1.sort_values("razao_ult12m_2019")
-p1.round(3).to_csv(PROC / "tab_P1_recuperacao.csv", encoding="utf-8")
+p1.round(3).to_csv(PROC / "tab_P1_folga.csv", encoding="utf-8")
 sub = p1[p1.index.str.startswith("3.")]
-R["P1"] = dict(
+R["FOLGA"] = dict(
     n_divisoes=int(len(sub)), abaixo=int((sub.razao_ult12m_2019 < 1).sum()), acima=int((sub.razao_ult12m_2019 >= 1).sum()),
     geral_razao=float(p1.loc["1", "razao_ult12m_2019"]), extrativas=float(p1.loc["2", "razao_ult12m_2019"]),
     transformacao=float(p1.loc["3", "razao_ult12m_2019"]),
@@ -184,7 +187,7 @@ R["P1"] = dict(
 )
 
 
-# ================================================================== P2: sensibilidade ao juro real por defasagem
+# ================================================================== P3a Exposição ao juro (nível): correlação por defasagem
 # matriz T x 27 do yoy, máscara da amostra e correlação vetorizada por defasagem
 Ymat = YOY.values
 Mamostra = ((YOY.index >= AMOSTRA_INI) & fora_covid(YOY.index))[:, None] & ~np.isnan(Ymat)
@@ -224,10 +227,10 @@ for _ in range(PERM_N):
 pvals = pd.Series((cnt + 1) / (PERM_N + 1), index=cor.index)
 p2 = pd.DataFrame({"atividade": nomes, "lag_otimo_meses": best_k, "r_melhor": best_r, "r_lag0": cor[0],
                    "p_perm": pvals}).sort_values("r_melhor")
-p2.round(4).to_csv(PROC / "tab_P2_juro_real.csv", encoding="utf-8")
-cor.round(3).to_csv(PROC / "tab_P2_correlacoes_por_lag.csv", encoding="utf-8")
+p2.round(4).to_csv(PROC / "tab_P3a_juro_nivel.csv", encoding="utf-8")
+cor.round(3).to_csv(PROC / "tab_P3a_juro_nivel_correlacoes.csv", encoding="utf-8")
 sig = p2[p2.p_perm < 0.05]
-R["P2"] = dict(
+R["JURO_NIVEL"] = dict(
     perm_n=PERM_N, n_significativas=int(len(sig)), n_total=int(len(p2)), n_negativas=int((p2.r_melhor < 0).sum()),
     top=[(c, r.atividade, round(float(r.r_melhor), 3), int(r.lag_otimo_meses), round(float(r.p_perm), 3)) for c, r in p2.head(6).iterrows()],
     geral=dict(r=float(p2.loc["1", "r_melhor"]), lag=int(p2.loc["1", "lag_otimo_meses"]), p=float(p2.loc["1", "p_perm"])),
@@ -238,7 +241,7 @@ R["P2"] = dict(
 )
 
 
-# ================================================================== P3: câmbio controlando o juro (OLS + HAC)
+# ================================================================== P4 Exposição ao câmbio, controlando o juro (OLS + HAC)
 def ols_hac(y, X, L=12):
     X = np.column_stack([np.ones(len(X)), X])
     b = np.linalg.lstsq(X, y, rcond=None)[0]
@@ -265,9 +268,9 @@ for c in YOY.columns:
     rows.append(dict(codigo=c, atividade=nomes[c], lag_juro=k, beta_juro=b[1], se_juro=se[1], t_juro=b[1] / se[1],
                      beta_cambio=b[2], se_cambio=se[2], t_cambio=b[2] / se[2], r2=r2, n=n, sd_yoy=d.y.std()))
 p3 = pd.DataFrame(rows).set_index("codigo")
-p3.round(4).to_csv(PROC / "tab_P3_modelo.csv", encoding="utf-8")
+p3.round(4).to_csv(PROC / "tab_P4_cambio_modelo.csv", encoding="utf-8")
 lst = lambda d, n: [(c, r.atividade, round(r.beta_cambio, 3), round(r.t_cambio, 2)) for c, r in d.head(n).iterrows()]
-R["P3"] = dict(
+R["CAMBIO"] = dict(
     cambio_pos_sig=[x for x in lst(p3.sort_values("t_cambio", ascending=False), 6) if x[3] > 1.96],
     cambio_neg_sig=[x for x in lst(p3.sort_values("t_cambio"), 6) if x[3] < -1.96],
     n_cambio_sig=int((p3.t_cambio.abs() > 1.96).sum()), n_juro_sig=int((p3.t_juro.abs() > 1.96).sum()), n_total=int(len(p3)),
@@ -277,28 +280,28 @@ R["P3"] = dict(
     r2_mediano=float(p3.r2.median()), r2_max=float(p3.r2.max()), r2_max_cod=p3.r2.idxmax(), r2_max_nome=nomes[p3.r2.idxmax()],
 )
 
-# ================================================================== P4: volatilidade
+# ================================================================== P2 Instabilidade
 p4 = p3[["atividade", "sd_yoy"]].copy()
 Y13 = YOY[YOY.index >= AMOSTRA_INI]
 p4["pior_yoy_sem_covid_pct"] = Y13[fora_covid(Y13.index)].min()
 p4["pior_yoy_com_covid_pct"] = Y13.min()
 p4 = p4.sort_values("sd_yoy", ascending=False)
-p4.round(2).to_csv(PROC / "tab_P4_volatilidade.csv", encoding="utf-8")
+p4.round(2).to_csv(PROC / "tab_P2_instabilidade.csv", encoding="utf-8")
 sd_div = p4[p4.index.str.startswith("3.")]
-R["P4"] = dict(
+R["INSTABILIDADE"] = dict(
     mais_volateis=[(c, r.atividade, round(r.sd_yoy, 1)) for c, r in sd_div.head(5).iterrows()],
     menos_volateis=[(c, r.atividade, round(r.sd_yoy, 1)) for c, r in sd_div.tail(5).iloc[::-1].iterrows()],
     geral=float(p4.loc["1", "sd_yoy"]), razao_max_min=float(sd_div.sd_yoy.max() / sd_div.sd_yoy.min()),
     corr_beta_vol=float(np.corrcoef(sd_div.sd_yoy, p3.loc[sd_div.index, "beta_juro"].abs())[0, 1]),
 )
 
-# ================================================================== P5: cenário de queda do juro real
+# ================================================================== P3a Exposição ao juro (nível): cenário de queda de 3 p.p.
 sr_ser = macro.selic_real_aa.dropna()
-R["P5_juro_real_atual_pct"] = float(sr_ser.iloc[-1])
-R["P5_ult_mes_juro_real"] = str(sr_ser.index[-1].date())
-R["P5_juro_real_media_hist_pct"] = float(sr_ser.mean())
-R["P5_selic_atual"] = float(macro.selic_aa.dropna().iloc[-1])
-R["P5_ipca12m_atual"] = float(macro.ipca_12m.dropna().iloc[-1])
+R["cenario_juro_real_atual_pct"] = float(sr_ser.iloc[-1])
+R["cenario_ult_mes_juro_real"] = str(sr_ser.index[-1].date())
+R["cenario_juro_real_media_hist_pct"] = float(sr_ser.mean())
+R["cenario_selic_atual"] = float(macro.selic_aa.dropna().iloc[-1])
+R["cenario_ipca12m_atual"] = float(macro.ipca_12m.dropna().iloc[-1])
 DELTA = -3.0
 p5 = p3[["atividade", "lag_juro", "beta_juro", "se_juro", "t_juro", "sd_yoy"]].copy()
 p5["efeito_pp"] = p5.beta_juro * DELTA
@@ -307,10 +310,10 @@ p5["ic_sup"] = np.maximum((p5.beta_juro - 1.96 * p5.se_juro) * DELTA, (p5.beta_j
 p5["efeito_por_vol"] = p5.efeito_pp / p5.sd_yoy
 p5["ic_exclui_zero"] = ((p5.ic_inf > 0) | (p5.ic_sup < 0)).astype(int)
 p5 = p5.sort_values("efeito_pp", ascending=False)
-p5.round(3).to_csv(PROC / "tab_P5_cenario.csv", encoding="utf-8")
+p5.round(3).to_csv(PROC / "tab_P3a_juro_cenario.csv", encoding="utf-8")
 sd5 = p5[p5.index.str.startswith("3.")]
 ef = lambda c: dict(efeito=float(p5.loc[c, "efeito_pp"]), ic=[float(p5.loc[c, "ic_inf"]), float(p5.loc[c, "ic_sup"])])
-R["P5"] = dict(
+R["JURO_CENARIO"] = dict(
     delta_pp=DELTA, geral=ef("1"), transformacao=ef("3"), extrativas=ef("2"),
     top=[(c, r.atividade, round(r.efeito_pp, 2), [round(r.ic_inf, 2), round(r.ic_sup, 2)], int(r.lag_juro)) for c, r in sd5.head(5).iterrows()],
     n_ic_exclui_zero=int(sd5.ic_exclui_zero.sum()), n_efeito_positivo=int((sd5.efeito_pp > 0).sum()), n_div=int(len(sd5)),
@@ -344,7 +347,7 @@ for c in YOY.columns:
             reg[f"{k}_{per}"] = v
     linhas_c.append(reg)
 cic = pd.DataFrame(linhas_c).set_index("codigo")
-cic.round(4).to_csv(PROC / "tab_ciclos_juros.csv", encoding="utf-8")
+cic.round(4).to_csv(PROC / "tab_P3b_juro_ciclos.csv", encoding="utf-8")
 div_c = cic[cic.index.str.startswith("3.")]
 ALVOS_EXPLORACAO = ["3.31", "3.13", "3.11", "3.25", "3.16", "3.27"]   # significativos na exploração 2013–2026
 
@@ -398,8 +401,8 @@ for col in DIMS:
     loo[DIMS[col]] = dict(spearman=spearman(mapa.indice_risco, mapa[outros].mean(axis=1)), top8_mantidos=len(top8 & set(alt.index[:8])))
 idx_rank = mapa[list(DIMS)].rank(ascending=False).mean(axis=1)
 corr_dims = mapa[list(DIMS)].corr().round(2)
-mapa.round(3).to_csv(PROC / "tab_mapa_risco.csv", encoding="utf-8")
-corr_dims.to_csv(PROC / "tab_mapa_correlacao_dimensoes.csv", encoding="utf-8")
+mapa.round(3).to_csv(PROC / "tab_P5_mapa_risco.csv", encoding="utf-8")
+corr_dims.to_csv(PROC / "tab_P5_correlacao_dimensoes.csv", encoding="utf-8")
 R["MAPA"] = dict(
     ranking=[(c, r.atividade, int(r.ranking), r.faixa, round(float(r.indice_risco), 2)) for c, r in mapa.iterrows()],
     alto=[mapa.loc[c, "atividade"] for c in mapa.index[:8]], baixo=[mapa.loc[c, "atividade"] for c in mapa.index[-8:]],
@@ -437,7 +440,7 @@ h1, l1 = ax.get_legend_handles_labels()
 h2, l2 = ax2.get_legend_handles_labels()
 ax.legend(h1 + h2, l1 + l2, loc="lower left", fontsize=8, frameon=False)
 ax.set_title("Indústria geral e juro real, 2002–2026")
-salvar(fig, "fig1_industria_e_juro_real.png")
+salvar(fig, "fig_serie_industria_juro_real.png")
 
 s = p1[p1.index.str.startswith("3.")].sort_values("razao_ult12m_2019")
 fig, ax = plt.subplots(figsize=(9, 6.6))
@@ -445,12 +448,12 @@ vals = (s.razao_ult12m_2019 - 1) * 100
 ax.barh(s.atividade.str.slice(0, 40), vals, color=[VERM if v < 0 else VERDE for v in vals])
 ax.axvline(0, color="black", lw=.8)
 ax.set_xlabel("Média dos últimos 12 meses vs. média de 2019 (%)")
-ax.set_title("P1 — Produção atual vs. 2019, por divisão da indústria de transformação", fontsize=10)
+ax.set_title("P1 Folga — produção atual vs. média de 2019, por divisão da transformação", fontsize=10)
 for i, v in enumerate(vals):
     ax.text(v + (1.5 if v >= 0 else -1.5), i, f"{v:+.0f}%", va="center", ha="left" if v >= 0 else "right", fontsize=7)
 ax.margins(x=.12)
 ax.tick_params(axis="y", labelsize=8)
-salvar(fig, "fig2_P1_recuperacao_pre_pandemia.png")
+salvar(fig, "fig_P1_folga_vs_2019.png")
 
 h = cor.loc[[c for c in cor.index if c.startswith("3.")]].copy()
 h = h.loc[h.min(axis=1).sort_values().index]
@@ -461,11 +464,11 @@ ax.set_yticklabels([nomes[c][:40] for c in h.index], fontsize=8)
 ax.set_xticks(range(13))
 ax.set_xticklabels(LAGS)
 ax.set_xlabel("Defasagem do juro real (meses): juro em t−k vs. crescimento anual em t")
-ax.set_title("P2 — Correlação entre juro real e crescimento anual (□ = defasagem de maior efeito)", fontsize=10)
+ax.set_title("P3 Exposição ao juro (nível) — correlação com o crescimento anual (□ = maior efeito)", fontsize=10)
 fig.colorbar(im, ax=ax).set_label("Correlação de Pearson")
 for i, c in enumerate(h.index):
     ax.plot(int(best_k[c]), i, marker="s", mfc="none", mec="black", ms=7)
-salvar(fig, "fig3_P2_correlacao_por_defasagem.png")
+salvar(fig, "fig_P3a_juro_nivel_defasagem.png")
 
 s = p3[p3.index.str.startswith("3.")].sort_values("beta_cambio")
 fig, axs = plt.subplots(1, 2, figsize=(11, 6.6), sharey=True)
@@ -479,20 +482,9 @@ for ax, col, ttl in [(axs[0], "juro", "Efeito de +1 p.p. de juro real\n(no cresc
     ax.set_title(ttl, fontsize=9)
 axs[0].set_yticks(range(len(s)))
 axs[0].set_yticklabels([nomes[c][:40] for c in s.index], fontsize=8)
-fig.suptitle("P3 — Coeficientes do modelo (azul = significativo a 5%; IC 95% robusto HAC)", fontweight="bold", fontsize=10)
-salvar(fig, "fig4_P3_coeficientes.png")
+fig.suptitle("P4 Exposição ao câmbio — coeficientes do modelo (azul = significativo a 5%; IC 95% robusto HAC)", fontweight="bold", fontsize=10)
+salvar(fig, "fig_P4_cambio_coeficientes.png")
 
-s = p5[p5.index.str.startswith("3.")]
-fig, ax = plt.subplots(figsize=(9, 5.6))
-ax.scatter(s.sd_yoy, s.efeito_pp, c=[AZUL if v else CINZA for v in s.ic_exclui_zero], s=40, zorder=3)
-for c, r in s.iterrows():
-    if abs(r.efeito_pp) > 1.4 or r.sd_yoy > 11:
-        ax.annotate(r.atividade[:32], (r.sd_yoy, r.efeito_pp), fontsize=7, xytext=(4, 3), textcoords="offset points")
-ax.axhline(0, color="black", lw=.8)
-ax.set_xlabel("Volatilidade (desvio-padrão do crescimento anual, p.p.)")
-ax.set_ylabel("Efeito estimado de −3 p.p. de juro real (p.p.)")
-ax.set_title("P4/P5 — Ganho esperado com queda do juro vs. volatilidade (azul: IC 95% exclui zero)", fontsize=10)
-salvar(fig, "fig5_P4_P5_sensibilidade_volatilidade.png")
 
 aus = df.assign(aus=df.indice.isna()).pivot(index="codigo", columns="data", values="aus")
 lin = aus.loc[[c for c in aus.index if aus.loc[c].any()]]
@@ -505,7 +497,7 @@ anos = list(range(2002, 2027, 4))
 ax.set_xticks([(pd.Timestamp(f"{a}-01-01") - lin.columns[0]).days / 30.44 for a in anos])
 ax.set_xticklabels(anos)
 ax.set_title("Qualidade — meses sem informação no IBGE (vermelho = ausente)", fontsize=10)
-salvar(fig, "fig6_qualidade_ausencias.png")
+salvar(fig, "fig_qualidade_ausencias.png")
 
 # ciclos de juros: diferença alta − corte nos dois períodos independentes
 s = div_c.sort_values("dif_completo")
@@ -520,9 +512,9 @@ ax.scatter(s.dif_validacao, yy, color=LARANJA, marker="D", s=26, zorder=3, label
 ax.set_yticks(yy)
 ax.set_yticklabels([nomes[c] for c in s.index], fontsize=8)
 ax.set_xlabel("Crescimento anual médio na alta da Selic menos no corte (p.p.)")
-ax.set_title("Exposição ao juro — crescimento em ciclos de alta vs. corte da Selic", fontsize=10)
+ax.set_title("P3 Exposição ao juro (direção) — crescimento em ciclos de alta vs. corte da Selic", fontsize=10)
 ax.legend(loc="lower right", fontsize=8, frameon=False)
-salvar(fig, "fig7_ciclos_juros.png")
+salvar(fig, "fig_P3b_juro_ciclos_selic.png")
 
 # mapa de risco: cor = escore padronizado; texto = valor na unidade original
 z = mapa[zcols].astype(float).values
@@ -541,8 +533,8 @@ ax.set_yticklabels([f"{int(r.ranking):>2}. {r.atividade} ({r.faixa})" for _, r i
 for lim in (7.5, 15.5):
     ax.axhline(lim, color="black", lw=1.2)
 fig.colorbar(im, ax=ax, shrink=.6).set_label("Escore padronizado (vermelho = mais risco)")
-ax.set_title("Mapa de risco setorial — divisões ordenadas pelo índice (média dos 4 escores)", fontsize=10, pad=48)
-salvar(fig, "fig8_mapa_risco.png")
+ax.set_title("P5 Mapa de risco setorial — divisões ordenadas pelo índice (média dos 4 escores)", fontsize=10, pad=48)
+salvar(fig, "fig_P5_mapa_risco.png")
 
 fig, ax = plt.subplots(figsize=(10, 5.6))
 ax.axis("off")

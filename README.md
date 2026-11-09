@@ -6,6 +6,22 @@ Aluno: Lucas Vilas Boas Iwano — matrícula 221021017 · Professor: André Luiz
 > Repositório: https://github.com/iwanolucas/MVP-Industria-Juros  
 > Relatório em Word: `Relatorio_MVP_Industria_Juros_Lucas_Iwano.docx`
 
+
+## Resumo
+
+Pergunta: qual é o risco de cada divisão da indústria de transformação brasileira hoje, e de onde ele vem? O destinatário é a área de crédito de um banco de desenvolvimento, que decide limites e provisões por setor.
+
+O que foi feito: um pipeline em nuvem (Databricks Free Edition, arquitetura medallion, tabelas Delta) que integra a produção industrial do IBGE (PIM-PF, 27 atividades) às séries de Selic, IPCA e câmbio do Banco Central, de 2002 a 2026, em um esquema dimensional com catálogo de dados e verificação de qualidade atributo a atributo. A análise mede quatro fontes de risco por divisão e as combina em um mapa de risco.
+
+- Folga (P1): 13 das 24 divisões ainda produzem abaixo da média de 2019, embora a indústria geral esteja 3,0% acima.
+- Instabilidade (P2): o crescimento anual de Fumo oscila 4,5 vezes mais que o de Celulose e papel.
+- Exposição ao juro (P3): o nível do juro real não diferencia os setores; a direção da Selic, sim. Em ciclos de alta, 21 de 24 divisões crescem menos. O sinal se repetiu na validação fora da amostra (2003–2012), mas sem significância setor a setor.
+- Exposição ao câmbio (P4): a desvalorização acompanha crescimento menor em 9 atividades, sobretudo nas que importam componentes.
+- Mapa de risco (P5): Informática e eletrônicos, Veículos e Impressão lideram o ranking, cada uma com três das quatro fontes de risco; o ranking é estável a mudanças de critério (correlação de postos de 0,85 a 0,99).
+
+Limitação principal: o índice mede sinais de fragilidade setorial, mas ainda não foi validado contra o risco de crédito observado (inadimplência por setor). Até essa validação, deve ser usado como triagem e para indicar o que monitorar em cada setor, não como modelo de risco. O mapa completo está na Seção 5.6.
+
+
 ## Como reproduzir (resumo)
 
 ```bash
@@ -13,7 +29,7 @@ pip install -r requirements.txt
 python scripts/coleta.py && python scripts/etl.py && python scripts/analise.py
 ```
 
-No Databricks: crie uma *Git folder* com este repositório e execute `notebooks/01`, `02` e `03` em ordem.
+No Databricks: crie uma *Git folder* com este repositório e execute `notebooks/01`, `02` e `03` em ordem. Detalhes na Seção 8.
 
 
 ## 1. Objetivo
@@ -105,7 +121,7 @@ Cada atributo tem dois domínios. O domínio esperado é declarado a priori, pel
 | Tabela | Atributo | Tipo | Descrição | Domínio esperado | Domínio observado | Nulos | Linhagem |
 |---|---|---|---|---|---|---|---|
 | dim_tempo | sk_tempo | inteiro (chave) | Chave do mês no formato AAAAMM. | 200201 a 202612 | 200201 a 202609 | 0 | Gerada no ETL a partir do mês da fonte (R1). |
-| dim_tempo | data | data | Primeiro dia do mês. | 2002-01-01 a 2026-12-01 | 2002-01-01 a 2026-09-01 | 0 | Mês em português da SIDRA / data dd/mm/aaaa do SGS -> 1º dia do mês (R1, R4). |
+| dim_tempo | data | data | Primeiro dia do mês. | 2002−01−01 a 2026−12−01 | 2002-01-01 a 2026-09-01 | 0 | Mês em português da SIDRA / data dd/mm/aaaa do SGS -> 1º dia do mês (R1, R4). |
 | dim_tempo | ano | inteiro | Ano civil. | 2002 a 2026 | 2002 a 2026 | 0 | Derivado de data. |
 | dim_tempo | mes | inteiro | Mês civil (1–12). | 1 a 12 | 1 a 12 | 0 | Derivado de data. |
 | dim_tempo | trimestre | inteiro | Trimestre civil (1–4). | 1 a 4 | 1 a 4 | 0 | Derivado de data. |
@@ -119,25 +135,25 @@ Cada atributo tem dois domínios. O domínio esperado é declarado a priori, pel
 | dim_atividade | secao_pai | categórico | Seção à qual a divisão pertence ('3'). Nulo para geral e seções. | 3 | 3 | 3 | Derivado do código. |
 | fato_producao | sk_tempo | inteiro (FK) | Mês da observação. | 200201 a 202612 | 200201 a 202607 | 0 | FK para dim_tempo. |
 | fato_producao | sk_atividade | inteiro (FK) | Atividade da observação. | 1 a 27 | 1 a 27 | 0 | FK para dim_atividade. |
-| fato_producao | indice | numérico | Número-índice de produção física (base 2022 = 100), sem ajuste sazonal. | 0,01 a 500 | 9.39 a 316.93 | 240 | IBGE/SIDRA tabela 8888 (PIM-PF), variável 12606, coletada em 28/09/2026. '-' convertido em NULL (R3). |
-| fato_producao | var_yoy_pct | numérico (%) | Variação % do índice frente ao mesmo mês do ano anterior. | ≥ -100 | -92.11 a 938.77 | 564 | Calculada no ETL (R6). |
+| fato_producao | indice | numérico | Número-índice de produção física (base 2022 = 100), sem ajuste sazonal. | 0,01 a 500 | 9,39 a 316,93 | 240 | IBGE/SIDRA tabela 8888 (PIM-PF), variável 12606, coletada em 28/09/2026. '-' convertido em NULL (R3). |
+| fato_producao | var_yoy_pct | numérico (%) | Variação % do índice frente ao mesmo mês do ano anterior. | ≥ −100 | −92,11 a 938,77 | 564 | Calculada no ETL (R6). |
 | fato_producao | flag_indice_ausente | booleano (0/1) | 1 quando o índice é nulo. | 0, 1 | 0 a 1 | 0 | Derivado de indice. |
 | fato_macro | sk_tempo | inteiro (FK) | Mês da observação. | 200201 a 202612 | 200201 a 202609 | 0 | FK para dim_tempo. |
-| fato_macro | selic_aa | numérico (% a.a.) | Taxa Selic acumulada no mês, anualizada (base 252). | 0 a 50 | 1.90 a 26.32 | 0 | BCB/SGS série 4189, coletada em 28/09/2026. |
-| fato_macro | ipca_mensal | numérico (% a.m.) | Variação mensal do IPCA. | -2 a 5 | -0.68 a 3.02 | 1 | BCB/SGS série 433, coletada em 28/09/2026. |
-| fato_macro | ipca_12m | numérico (%) | IPCA acumulado em 12 meses. | -5 a 30 | 1.88 a 17.24 | 1 | BCB/SGS série 13522, coletada em 28/09/2026. |
-| fato_macro | dolar_medio | numérico (R$/US$) | Taxa de câmbio livre, dólar (venda), média do mês. | 1 a 10 | 1.56 a 6.10 | 1 | BCB/SGS série 3698, coletada em 28/09/2026. |
-| fato_macro | selic_real_aa | numérico (% a.a.) | Juro real ex-post: (1+Selic)/(1+IPCA 12m) − 1. | -15 a 30 | -4.44 a 12.95 | 1 | Calculada no ETL (R7) a partir de selic_aa e ipca_12m. |
-| fato_macro | var_cambial_12m_pct | numérico (%) | Variação % do dólar médio frente ao mesmo mês do ano anterior (positivo = real desvalorizado). | ≥ -100 | -26.90 a 67.45 | 13 | Calculada no ETL (R8). |
+| fato_macro | selic_aa | numérico (% a.a.) | Taxa Selic acumulada no mês, anualizada (base 252). | 0 a 50 | 1,90 a 26,32 | 0 | BCB/SGS série 4189, coletada em 28/09/2026. |
+| fato_macro | ipca_mensal | numérico (% a.m.) | Variação mensal do IPCA. | −2 a 5 | −0,68 a 3,02 | 1 | BCB/SGS série 433, coletada em 28/09/2026. |
+| fato_macro | ipca_12m | numérico (%) | IPCA acumulado em 12 meses. | −5 a 30 | 1,88 a 17,24 | 1 | BCB/SGS série 13522, coletada em 28/09/2026. |
+| fato_macro | dolar_medio | numérico (R$/US$) | Taxa de câmbio livre, dólar (venda), média do mês. | 1 a 10 | 1,56 a 6,10 | 1 | BCB/SGS série 3698, coletada em 28/09/2026. |
+| fato_macro | selic_real_aa | numérico (% a.a.) | Juro real ex-post: (1+Selic)/(1+IPCA 12m) − 1. | −15 a 30 | −4,44 a 12,95 | 1 | Calculada no ETL (R7) a partir de selic_aa e ipca_12m. |
+| fato_macro | var_cambial_12m_pct | numérico (%) | Variação % do dólar médio frente ao mesmo mês do ano anterior (positivo = real desvalorizado). | ≥ −100 | −26,90 a 67,45 | 13 | Calculada no ETL (R8). |
 | fato_macro | flag_tem_producao | booleano (0/1) | 1 quando o mês também existe na PIM-PF (R9). | 0, 1 | 0 a 1 | 0 | Derivado no ETL. |
 | mapa_risco | sk_atividade | inteiro (FK) | Divisão avaliada. | 4 a 27 | 4 a 27 | 0 | FK para dim_atividade. Gerada por scripts/analise.py (camada de consumo). |
 | mapa_risco | codigo | categórico (texto) | Código CNAE da divisão. | 24 valores (3.10, 3.11, 3.12, …) | 24 categorias (ex.: 3.10, 3.11, 3.12, 3.13, …) | 0 | Copiado de dim_atividade. |
 | mapa_risco | atividade | texto | Nome curto da divisão. | texto livre | texto livre (24 valores distintos) | 0 | scripts/dominios.py (NOMES_CURTOS). |
-| mapa_risco | folga_pp | numérico (%) | Dimensão Folga: quanto a produção dos últimos 12 meses está abaixo da média de 2019 (negativo = acima). | -100 a 100 | -38.39 a 33.07 | 0 | fato_producao.indice; média 2019 vs. últimos 12 meses. |
-| mapa_risco | instabilidade_pp | numérico (p.p.) | Dimensão Instabilidade: desvio-padrão do crescimento anual, 2013–2026, sem a pandemia. | ≥ 0 | 4.39 a 19.59 | 0 | fato_producao.var_yoy_pct. |
-| mapa_risco | expos_juro_pp | numérico (p.p.) | Dimensão Exposição ao juro: quanto o crescimento anual médio é menor em ciclos de alta da Selic (Selic > 12 meses antes) do que em ciclos de corte, 2003–2026. | -50 a 50 | -4.91 a 12.88 | 0 | fato_producao.var_yoy_pct e fato_macro.selic_aa. |
-| mapa_risco | expos_cambio_pp | numérico (p.p.) | Dimensão Exposição ao câmbio: menos o coeficiente da variação cambial de 12 meses na regressão com juro real (p.p. a menos por 1% de desvalorização). | -5 a 5 | 0.01 a 0.45 | 0 | fato_producao.var_yoy_pct e fato_macro.var_cambial_12m_pct; OLS com erros de Newey-West. |
-| mapa_risco | indice_risco | numérico | Média simples dos escores padronizados (z) das quatro dimensões. | -5 a 5 | -0.93 a 1.70 | 0 | Calculado em scripts/analise.py. |
+| mapa_risco | folga_pp | numérico (%) | Dimensão Folga: quanto a produção dos últimos 12 meses está abaixo da média de 2019 (negativo = acima). | −100 a 100 | −38,39 a 33,07 | 0 | fato_producao.indice; média 2019 vs. últimos 12 meses. |
+| mapa_risco | instabilidade_pp | numérico (p.p.) | Dimensão Instabilidade: desvio-padrão do crescimento anual, 2013–2026, sem a pandemia. | ≥ 0 | 4,39 a 19,59 | 0 | fato_producao.var_yoy_pct. |
+| mapa_risco | expos_juro_pp | numérico (p.p.) | Dimensão Exposição ao juro: quanto o crescimento anual médio é menor em ciclos de alta da Selic (Selic > 12 meses antes) do que em ciclos de corte, 2003–2026. | −50 a 50 | −4,91 a 12,88 | 0 | fato_producao.var_yoy_pct e fato_macro.selic_aa. |
+| mapa_risco | expos_cambio_pp | numérico (p.p.) | Dimensão Exposição ao câmbio: menos o coeficiente da variação cambial de 12 meses na regressão com juro real (p.p. a menos por 1% de desvalorização). | −5 a 5 | 0,01 a 0,45 | 0 | fato_producao.var_yoy_pct e fato_macro.var_cambial_12m_pct; OLS com erros de Newey-West. |
+| mapa_risco | indice_risco | numérico | Média simples dos escores padronizados (z) das quatro dimensões. | −5 a 5 | −0,93 a 1,70 | 0 | Calculado em scripts/analise.py. |
 | mapa_risco | ranking | inteiro | Posição no índice (1 = maior risco). | 1 a 24 | 1 a 24 | 0 | Ordenação de indice_risco. |
 | mapa_risco | faixa | categórico | Terço do ranking: alto (1–8), médio (9–16), baixo (17–24). | alto, médio, baixo | alto, baixo, médio | 0 | Derivado de ranking. |
 
@@ -286,13 +302,13 @@ Resultado atributo a atributo: 0 dos 26 atributos têm valores fora do domínio 
 | Acurácia | Outliers da variação anual (z robusto, em módulo, acima de 5) | 58 pontos, dos quais 48 em mar/2020–jun/2021 (choque e rebote: maior valor, veículos em abr/2021, +939% sobre a base do lockdown) e 10 fora dele. | A janela de pandemia é excluída das estatísticas (P2 a P4); os 10 pontos restantes são mantidos (variações reais de setores voláteis). |
 | Atualidade | Defasagem entre fontes | PIM-PF vai até jul/2026; o BCB, até 2026/09 (defasagem de 2 meses). O último mês do BCB é parcial. | Junção por interseção (R9); o cenário de corte de juros (P3) usa o último juro real completo (ago./2026). |
 
-![Figura 11 — Meses sem informação no IBGE: apenas as divisões 3.18 e 3.33, antes de 2012.](evidencias/fig6_qualidade_ausencias.png)
+![Figura 11 — Meses sem informação no IBGE: apenas as divisões 3.18 e 3.33, antes de 2012.](evidencias/fig_qualidade_ausencias.png)
 
 *Figura 11 — Meses sem informação no IBGE: apenas as divisões 3.18 e 3.33, antes de 2012.*
 
 Ressalva importante: o índice não tem ajuste sazonal. A série industrial oscila fortemente entre meses por sazonalidade (Figura 12), o que torna inadequada a comparação mês a mês. Por isso toda a análise usa variação contra o mesmo mês do ano anterior, que elimina a sazonalidade, e médias de 12 meses.
 
-![Figura 12 — Produção industrial (índice sem ajuste sazonal) e juro real ex-post, 2002–2026.](evidencias/fig1_industria_e_juro_real.png)
+![Figura 12 — Produção industrial (índice sem ajuste sazonal) e juro real ex-post, 2002–2026.](evidencias/fig_serie_industria_juro_real.png)
 
 *Figura 12 — Produção industrial (índice sem ajuste sazonal) e juro real ex-post, 2002–2026.*
 
@@ -303,7 +319,7 @@ Amostra de análise. Para instabilidade (P2), nível do juro (P3) e câmbio (P4)
 
 O agregado voltou: a indústria geral produz hoje (média dos últimos 12 meses) 3,0% acima da média de 2019, com queda máxima de 31% no fundo de 2020 e retorno sustentado ao patamar de 2019 em 4 meses. As extrativas estão 10,3% acima, e a indústria de transformação, 1,5% acima. A média, porém, esconde a divisão: das 24 divisões da transformação, 13 ainda estão abaixo de 2019 e 11 acima (Figura 13).
 
-![Figura 13 — Folga: produção dos últimos 12 meses vs. média de 2019, por divisão (P1).](evidencias/fig2_P1_recuperacao_pre_pandemia.png)
+![Figura 13 — Folga: produção dos últimos 12 meses vs. média de 2019, por divisão (P1).](evidencias/fig_P1_folga_vs_2019.png)
 
 *Figura 13 — Folga: produção dos últimos 12 meses vs. média de 2019, por divisão (P1).*
 
@@ -336,7 +352,7 @@ A exposição ao juro foi medida de dois modos. O primeiro olha o nível do juro
 
 Nível do juro real. Para cada uma das 27 atividades calculou-se a correlação entre o crescimento anual em t e o juro real em t−k, para k de 0 a 12 meses (Figura 14). Como a escolha do melhor k dentre 13 defasagens infla a chance de achar correlação por acaso, e as séries são autocorrelacionadas, a significância foi avaliada por um teste de permutação: o juro real é deslocado circularmente (2.000 deslocamentos) e compara-se a correlação mais negativa observada com a distribuição do mínimo sobre as 13 defasagens. Resultado: 0 das 27 séries têm p < 0,05; só 11 correlações têm o sinal esperado, e a indústria geral tem correlação positiva (+0,19). O cenário de queda de 3 p.p. no juro real, aplicado aos coeficientes de uma regressão com erros de Newey-West, projeta -0,31 p.p. para a indústria geral (IC 95%: -1,3 a +0,7), indistinguível de zero. O nível do juro real não diferencia as divisões.
 
-![Figura 14 — Nível do juro: correlação entre juro real defasado e crescimento anual, por divisão (P3).](evidencias/fig3_P2_correlacao_por_defasagem.png)
+![Figura 14 — Nível do juro: correlação entre juro real defasado e crescimento anual, por divisão (P3).](evidencias/fig_P3a_juro_nivel_defasagem.png)
 
 *Figura 14 — Nível do juro: correlação entre juro real defasado e crescimento anual, por divisão (P3).*
 
@@ -348,7 +364,7 @@ Direção da Selic. Um mês é de ciclo de alta quando a Selic está acima da de
 | 2003–2012 (validação) | 22 | 18 | 1 | 0 | -2,5 |
 | 2003–2026 (completo) | 24 | 21 | 6 | 0 | -3,5 |
 
-![Figura 15 — Direção da Selic: crescimento anual na alta menos no corte, nos dois períodos independentes (P3).](evidencias/fig7_ciclos_juros.png)
+![Figura 15 — Direção da Selic: crescimento anual na alta menos no corte, nos dois períodos independentes (P3).](evidencias/fig_P3b_juro_ciclos_selic.png)
 
 *Figura 15 — Direção da Selic: crescimento anual na alta menos no corte, nos dois períodos independentes (P3).*
 
@@ -368,7 +384,7 @@ Resposta a P3. O nível do juro real não explica o crescimento de nenhuma divis
 
 Para cada atividade estimou-se por mínimos quadrados o crescimento anual contra o juro real defasado e a variação cambial de 12 meses, com erros-padrão robustos a autocorrelação e heterocedasticidade (Newey-West, 12 defasagens). A Figura 16 mostra os coeficientes com intervalos de 95%.
 
-![Figura 16 — Exposição ao câmbio: coeficientes do juro real e da variação cambial por divisão (P4).](evidencias/fig4_P3_coeficientes.png)
+![Figura 16 — Exposição ao câmbio: coeficientes do juro real e da variação cambial por divisão (P4).](evidencias/fig_P4_cambio_coeficientes.png)
 
 *Figura 16 — Exposição ao câmbio: coeficientes do juro real e da variação cambial por divisão (P4).*
 
@@ -389,7 +405,7 @@ Resposta a P4. O câmbio tem associação significativa em 9 das 27 atividades, 
 
 Cada dimensão foi transformada em escore padronizado (z) entre as 24 divisões, com sinal tal que valor maior significa mais risco: folga (quanto abaixo de 2019), instabilidade (desvio-padrão), exposição ao juro (quanto cresce a menos na alta da Selic) e exposição ao câmbio (quanto cresce a menos por 1% de desvalorização). O índice é a média simples dos quatro escores, o critério mais transparente na ausência de uma razão para pesar uma fonte de risco acima da outra. As divisões são divididas em três faixas de oito.
 
-![Figura 17 — Mapa de risco setorial: cor = escore padronizado de cada dimensão; texto = valor na unidade original (P5).](evidencias/fig8_mapa_risco.png)
+![Figura 17 — Mapa de risco setorial: cor = escore padronizado de cada dimensão; texto = valor na unidade original (P5).](evidencias/fig_P5_mapa_risco.png)
 
 *Figura 17 — Mapa de risco setorial: cor = escore padronizado de cada dimensão; texto = valor na unidade original (P5).*
 
@@ -424,12 +440,14 @@ Robustez. O ranking muda pouco com o critério. Usando a média das posições e
 
 Resposta a P5. As oito divisões de risco alto são Informática e eletrônicos, Veículos, Impressão, Móveis, Vestuário, Têxteis, Máquinas e materiais elétricos e Couro e calçados; as de risco baixo, Celulose e papel, Derivados de petróleo, Alimentos, Minerais não metálicos, Outros equipamentos de transporte, Químicos, Bebidas e Farmacêuticos. O mapa mostra também de onde vem o risco: em Informática e Veículos domina o câmbio, somado a alta instabilidade e exposição ao juro; em Impressão, Vestuário e Couro, a folga; em Móveis, Têxteis e Máquinas elétricas, a exposição ao juro. As três primeiras acumulam três das quatro fontes de risco: H1 confirmada. O caso de Fumo mostra por que combinar dimensões importa: é a divisão mais instável, mas está 38% acima de 2019 e pouco exposta a juro e câmbio, e fica em 16º.
 
-Discussão geral. Para a área de crédito, o mapa traduz-se em três regras de uso. (1) A faixa define o ponto de partida do limite e da provisão. (2) A dimensão dominante indica o gatilho a monitorar: início de ciclo de alta da Selic para Móveis, Têxteis, Máquinas elétricas, Veículos e Informática; desvalorização cambial para Informática, Veículos e Impressão; recuperação da demanda para Impressão, Vestuário e Couro. (3) O nível do juro real não deve ser usado como gatilho: ele não diferencia as divisões. As limitações estão na Autoavaliação; a principal é que a exposição ao juro de cada divisão isolada é estimada com pouca precisão, o que o índice atenua ao combiná-la com três outras fontes.
+Discussão geral. Para a área de crédito, o mapa traduz-se em três regras de uso. (1) A faixa define o ponto de partida do limite e da provisão. (2) A dimensão dominante indica o gatilho a monitorar: início de ciclo de alta da Selic para Móveis, Têxteis, Máquinas elétricas, Veículos e Informática; desvalorização cambial para Informática, Veículos e Impressão; recuperação da demanda para Impressão, Vestuário e Couro. (3) O nível do juro real não deve ser usado como gatilho: ele não diferencia as divisões.
+
+Limitação principal. O índice mede sinais de fragilidade setorial observáveis na produção, mas não foi validado contra o risco de crédito realizado: não se verificou se as divisões de risco alto de fato têm mais inadimplência. Por isso ele deve ser lido como ferramenta de triagem e de monitoramento, não como modelo de risco de crédito, e os pesos iguais não estão calibrados. Duas ressalvas de construção se somam a essa: a exposição ao juro de cada divisão isolada é estimada com pouca precisão (o índice a atenua ao combiná-la com outras três fontes), e a folga pode refletir tanto demanda fraca quanto um setor em recuperação, que para um credor pode ser oportunidade. A validação com dados de inadimplência setorial do Banco Central é o próximo passo natural (Autoavaliação).
 
 
 ## 6. Ética, licenciamento e proteção de dados
 
-- Licença dos dados do Banco Central (SGS). As séries 4189, 433, 13522 e 3698 estão publicadas no Portal de Dados Abertos do BCB (dadosabertos.bcb.gov.br) sob a Open Data Commons Open Database License (ODbL). A ODbL permite redistribuir e criar bases derivadas, com duas condições: atribuição da fonte e compartilhamento da base derivada sob a mesma licença. Por isso as tabelas derivadas publicadas em data/processed (os CSV de fatos, dimensões e resultados, como fato_macro.csv e tab_mapa_risco.csv) são distribuídas também sob a ODbL, com atribuição ao BCB (registro no arquivo LICENSE).
+- Licença dos dados do Banco Central (SGS). As séries 4189, 433, 13522 e 3698 estão publicadas no Portal de Dados Abertos do BCB (dadosabertos.bcb.gov.br) sob a Open Data Commons Open Database License (ODbL). A ODbL permite redistribuir e criar bases derivadas, com duas condições: atribuição da fonte e compartilhamento da base derivada sob a mesma licença. Por isso as tabelas derivadas publicadas em data/processed (os CSV de fatos, dimensões e resultados, como fato_macro.csv e tab_P5_mapa_risco.csv) são distribuídas também sob a ODbL, com atribuição ao BCB (registro no arquivo LICENSE).
 - Licença dos dados do IBGE (SIDRA, tabela 8888). A PIM-PF é estatística oficial de divulgação pública. A reprodução é aceita com citação obrigatória da fonte, e o trabalho cita "IBGE, Pesquisa Industrial Mensal – Produção Física, tabela 8888 (SIDRA)" no README, no catálogo e no relatório. Não foi localizada uma licença aberta formal (do tipo CC ou ODbL) específica para a tabela, e isso fica registrado aqui. Para reutilização comercial, convém confirmar os termos diretamente com o IBGE.
 - Versionamento dos dados brutos. Como as duas fontes permitem redistribuição com atribuição, e os arquivos são pequenos (cerca de 1,7 MB), os JSON brutos foram versionados em data/raw para garantir reprodutibilidade, inclusive no Databricks Free Edition, que não acessa a internet. O script de coleta também está publicado, e o manifesto registra URL, data e hash SHA-256 de cada arquivo.
 - Dados pessoais (LGPD). Não se aplica: as bases são agregados nacionais mensais, sem identificadores de pessoas ou empresas.
@@ -445,7 +463,7 @@ Objetivos atingidos. A pergunta central foi respondida: o mapa de risco classifi
 Perguntas sugeridas:
 
 - Quais perguntas foram respondidas e quais não? P1, P2, P4 e P5 foram respondidas. P3 foi respondida no agregado (ciclos de alta reduzem o crescimento de quase todas as divisões), mas não no detalhe: com sete ciclos de alta em 24 anos, o efeito de cada divisão isolada é estimado com pouca precisão. A versão anterior do trabalho, centrada no nível do juro, teve resposta nula; isso motivou a segunda volta do ciclo do MVP.
-- Que limitações dos dados condicionaram os resultados? Índice sem ajuste sazonal (obrigou o uso de variação anual); poucos ciclos de juros; exclusão da pandemia; ausência de controles de crédito, renda e demanda externa; e o fato de os ciclos de alta de 2008 e de 2015 coincidirem com recessões, o que mistura o efeito do juro com o do ciclo econômico. No mapa, os pesos iguais são uma escolha: a análise de sensibilidade mostra que o ranking muda pouco, mas não elimina a escolha.
+- Que limitações dos dados condicionaram os resultados? Índice sem ajuste sazonal (obrigou o uso de variação anual); poucos ciclos de juros; exclusão da pandemia; ausência de controles de crédito, renda e demanda externa; e o fato de os ciclos de alta de 2008 e de 2015 coincidirem com recessões, o que mistura o efeito do juro com o do ciclo econômico. No mapa, a limitação mais séria é a falta de validação contra o risco realizado: sem dados de inadimplência por setor, não se sabe se o ranking antecipa perdas de crédito. Os pesos iguais são uma escolha: a análise de sensibilidade mostra que o ranking muda pouco, mas não elimina a escolha.
 - Que decisões técnicas tomaria de outra forma? Começaria pela pergunta de decisão (o mapa de risco) em vez de cinco perguntas independentes, o que teria evitado uma primeira versão sem tese. Testaria o pipeline no Databricks desde o primeiro dia: só na execução real apareceu que o Free Edition não acessa a internet. E declararia as definições dos testes, como a de ciclo de alta, antes de olhar qualquer resultado, como foi feito na validação fora da amostra.
 - Que extensões transformariam o MVP em solução de uso contínuo? Agendamento mensal do job (Databricks Workflows) alinhado à divulgação da PIM-PF, com carga incremental; o mapa de risco republicado a cada mês como tabela Delta e painel; testes automáticos de qualidade (as verificações da Seção 5.1 como expectativas de dados); inclusão de indicadores de crédito por setor e da PIM regional; e acompanhamento da estabilidade do ranking ao longo do tempo.
 
@@ -454,7 +472,7 @@ Trabalhos futuros. Identificar o efeito do juro com choques monetários (VAR est
 
 ## 8. Reprodutibilidade
 
-- Local: python scripts/coleta.py → python scripts/etl.py → python scripts/analise.py → python scripts/gerar_catalogo.py → python scripts/gerar_relatorio.py. Dependências em requirements.txt. Semente aleatória fixa (42). O mapa de risco sai em data/processed/tab_mapa_risco.csv e na tabela mapa_risco do DW.
+- Local: python scripts/coleta.py → python scripts/etl.py → python scripts/analise.py → python scripts/gerar_catalogo.py → python scripts/gerar_relatorio.py. Dependências em requirements.txt. Semente aleatória fixa (42). O mapa de risco sai em data/processed/tab_P5_mapa_risco.csv e na tabela mapa_risco do DW.
 - Databricks: criar uma Git folder com o repositório e executar notebooks/01, 02 e 03 em ordem. Os notebooks usam catalog workspace e schema industria_juros. O notebook 01 parte, por padrão, do bronze versionado em data/raw (o Free Edition não acessa a internet, e isso mantém os números reprodutíveis); para coletar de novo das APIs, use COLETAR_DAS_APIS = True.
 - Repositório: https://github.com/iwanolucas/MVP-Industria-Juros
 - Fontes: IBGE/SIDRA tabela 8888 (PIM-PF); BCB/SGS séries 4189, 433, 13522 e 3698.

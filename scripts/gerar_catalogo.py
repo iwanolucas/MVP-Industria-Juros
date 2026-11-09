@@ -64,7 +64,7 @@ for t, c, tipo, desc, obrig, lin in META:
         dom = ", ".join(vals) if len(vals) <= 8 else f"{len(vals)} categorias (ex.: {', '.join(vals[:4])}, …)"
     elif tipo.startswith(("inteiro", "numérico", "data", "booleano")):
         mn, mx = con.execute(f"SELECT MIN({c}), MAX({c}) FROM {t}").fetchone()
-        fmt = lambda v: f"{v:.2f}" if isinstance(v, float) else str(v)
+        fmt = lambda v: f"{v:.2f}".replace(".", ",").replace("-", "−") if isinstance(v, float) else str(v)
         dom = f"{fmt(mn)} a {fmt(mx)}"
     else:
         n = con.execute(f"SELECT COUNT(DISTINCT {c}) FROM {t}").fetchone()[0]

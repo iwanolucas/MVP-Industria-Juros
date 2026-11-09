@@ -90,7 +90,7 @@ def texto_dominio(regra):
     tipo = regra[0]
     if tipo == "faixa":
         mn, mx = regra[1], regra[2]
-        fmt = lambda v: str(v).replace(".", ",")
+        fmt = lambda v: str(v).replace(".", ",").replace("-", "−")
         if mx is None:
             return f"≥ {fmt(mn)}"
         if mn is None:
