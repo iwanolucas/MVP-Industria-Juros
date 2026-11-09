@@ -5,7 +5,11 @@ Saídas: data/processed/resultados.json, data/processed/tab_*.csv, evidencias/*.
 """
 import json
 import sqlite3
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from dominios import DOMINIOS, NOMES_CURTOS, fora_do_dominio  # noqa: E402
 
 import matplotlib
 matplotlib.use("Agg")
@@ -42,10 +46,32 @@ JOIN dim_atividade a USING (sk_atividade)
 LEFT JOIN fato_macro m USING (sk_tempo)
 ORDER BY a.codigo, t.data"""
 df = pd.read_sql(SQL, con, parse_dates=["data"])
+df["atividade"] = df.codigo.map(NOMES_CURTOS).fillna(df.atividade)  # nomes legíveis só na apresentação
 macro = pd.read_sql("SELECT m.*, t.data FROM fato_macro m JOIN dim_tempo t USING(sk_tempo)", con,
                     parse_dates=["data"]).set_index("data")
 
 # ================================================================== QUALIDADE
+# (a) atributo a atributo: completude, unicidade, conformidade ao domínio esperado do catálogo
+q_attr = []
+for (tab, col), regra in DOMINIOS.items():
+    s = pd.read_sql(f"SELECT {col} FROM {tab}", con)[col]
+    n, nul = len(s), int(s.isna().sum())
+    q_attr.append(dict(tabela=tab, atributo=col, linhas=n, nulos=nul, completude_pct=round(100 * (n - nul) / n, 1),
+                       distintos=int(s.nunique()), fora_dominio=fora_do_dominio(s, regra)))
+q_attr = pd.DataFrame(q_attr)
+q_attr.to_csv(PROC / "tab_qualidade_atributos.csv", index=False, encoding="utf-8")
+R["q_atributos_total"] = int(len(q_attr))
+R["q_atributos_fora_dominio"] = int((q_attr.fora_dominio > 0).sum())
+R["q_atributos_com_nulos"] = int((q_attr.nulos > 0).sum())
+# chaves: unicidade das PK e integridade referencial
+pk = {"dim_tempo": ["sk_tempo"], "dim_atividade": ["sk_atividade"], "fato_producao": ["sk_tempo", "sk_atividade"], "fato_macro": ["sk_tempo"]}
+R["q_pk_duplicadas"] = {t: int(pd.read_sql(f"SELECT {', '.join(c)} FROM {t}", con).duplicated().sum()) for t, c in pk.items()}
+R["q_fk_orfas"] = {
+    "fato_producao.sk_tempo": con.execute("SELECT COUNT(*) FROM fato_producao f LEFT JOIN dim_tempo t USING(sk_tempo) WHERE t.sk_tempo IS NULL").fetchone()[0],
+    "fato_producao.sk_atividade": con.execute("SELECT COUNT(*) FROM fato_producao f LEFT JOIN dim_atividade a USING(sk_atividade) WHERE a.sk_atividade IS NULL").fetchone()[0],
+    "fato_macro.sk_tempo": con.execute("SELECT COUNT(*) FROM fato_macro m LEFT JOIN dim_tempo t USING(sk_tempo) WHERE t.sk_tempo IS NULL").fetchone()[0],
+}
+# (b) por dimensão de qualidade
 n_meses = df.data.nunique()
 aus_df = df[df.indice.isna()]
 R["q_indice_ausentes_total"] = int(len(aus_df))

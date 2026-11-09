@@ -2,7 +2,12 @@
 import sqlite3
 from pathlib import Path
 
+import sys
+
 import pandas as pd
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from dominios import DOMINIOS, texto_dominio  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 con = sqlite3.connect(ROOT / "data" / "processed" / "dw_industria.sqlite")
@@ -17,12 +22,12 @@ META = [
     ("dim_tempo", "ano", "inteiro", "Ano civil.", "Obrigatório", "Derivado de data."),
     ("dim_tempo", "mes", "inteiro", "Mês civil (1–12).", "Obrigatório", "Derivado de data."),
     ("dim_tempo", "trimestre", "inteiro", "Trimestre civil (1–4).", "Obrigatório", "Derivado de data."),
-    ("dim_tempo", "nome_mes", "categórico", "Abreviatura inglesa do mês (locale do sistema).", "Obrigatório", "Derivado de data."),
+    ("dim_tempo", "nome_mes", "categórico", "Abreviatura do mês gerada pelo locale do ambiente de execução (inglês: Jan…Dec). Usada só para rótulos.", "Obrigatório", "Derivado de data."),
     ("dim_tempo", "periodo_covid", "booleano (0/1)", "1 entre mar/2020 e dez/2020 (choque inicial da pandemia); a análise usa janela mais larga (mar/2020–jun/2021).", "Obrigatório", "Regra fixa do ETL."),
     ("dim_atividade", "sk_atividade", "inteiro (chave)", "Chave substituta da atividade industrial.", "Obrigatório", "Sequência gerada no ETL."),
     ("dim_atividade", "codigo", "categórico (texto)", "Código CNAE 2.0 da seção/divisão (1 = geral; 2 = extrativas; 3 = transformação; 3.10–3.33 = divisões).", "Obrigatório", f"Extraído do rótulo da atividade (R2). {PIM}."),
     ("dim_atividade", "atividade", "texto", "Nome oficial da atividade.", "Obrigatório", f"Extraído do rótulo (R2). {PIM}."),
-    ("dim_atividade", "atividade_curta", "texto", "Nome abreviado (sem prefixo 'Fabricação de', máx. 42 caracteres) para gráficos.", "Obrigatório", "Derivado de atividade."),
+    ("dim_atividade", "atividade_curta", "texto", "Nome sem o prefixo 'Fabricação de', cortado em 42 caracteres. As tabelas e os gráficos do relatório usam um nome curto revisado à mão (scripts/dominios.py).", "Obrigatório", "Derivado de atividade."),
     ("dim_atividade", "nivel", "categórico", "Nível hierárquico: geral, secao ou divisao.", "Obrigatório", "Derivado do código."),
     ("dim_atividade", "secao_pai", "categórico", "Seção à qual a divisão pertence ('3'). Nulo para geral e seções.", "Admite nulo (nulo = sem pai)", "Derivado do código."),
     ("fato_producao", "sk_tempo", "inteiro (FK)", "Mês da observação.", "Obrigatório", "FK para dim_tempo."),
@@ -53,15 +58,18 @@ for t, c, tipo, desc, obrig, lin in META:
         n = con.execute(f"SELECT COUNT(DISTINCT {c}) FROM {t}").fetchone()[0]
         dom = f"texto livre ({n} valores distintos)"
     nulos = con.execute(f"SELECT COUNT(*) FROM {t} WHERE {c} IS NULL").fetchone()[0]
-    linhas.append(dict(tabela=t, atributo=c, tipo=tipo, descricao=desc, dominio_observado=dom, obrigatoriedade=obrig,
+    linhas.append(dict(tabela=t, atributo=c, tipo=tipo, descricao=desc, dominio_esperado=texto_dominio(DOMINIOS[(t, c)]),
+                       dominio_observado=dom, obrigatoriedade=obrig,
                        nulos_observados=nulos, linhagem=lin))
 
 cat = pd.DataFrame(linhas)
 cat.to_csv(ROOT / "catalogo" / "catalogo_dados.csv", index=False, encoding="utf-8")
-md = ["# Catálogo de Dados\n", "Domínios lidos diretamente da base (`dw_industria.sqlite`). Regras R1–R9 estão em `scripts/etl.py`.\n"]
+md = ["# Catálogo de Dados\n", "O **domínio esperado** é declarado a priori, pelo significado do dado (regras em `scripts/dominios.py`); o **domínio observado** "
+      "é lido da base carregada (`dw_industria.sqlite`). A análise de qualidade (README, Seção 5.1) confere, atributo a atributo, se o "
+      "observado respeita o esperado. Regras de transformação R1–R9 em `scripts/etl.py`.\n"]
 for t, g in cat.groupby("tabela", sort=False):
-    md.append(f"\n## {t}\n\n| Atributo | Tipo | Descrição | Domínio observado | Obrigatoriedade | Nulos | Linhagem |\n|---|---|---|---|---|---|---|")
+    md.append(f"\n## {t}\n\n| Atributo | Tipo | Descrição | Domínio esperado | Domínio observado | Obrigatoriedade | Nulos | Linhagem |\n|---|---|---|---|---|---|---|---|")
     for _, r in g.iterrows():
-        md.append(f"| `{r.atributo}` | {r.tipo} | {r.descricao} | {r.dominio_observado} | {r.obrigatoriedade} | {r.nulos_observados} | {r.linhagem} |")
+        md.append(f"| `{r.atributo}` | {r.tipo} | {r.descricao} | {r.dominio_esperado} | {r.dominio_observado} | {r.obrigatoriedade} | {r.nulos_observados} | {r.linhagem} |")
 (ROOT / "catalogo" / "catalogo_dados.md").write_text("\n".join(md) + "\n", encoding="utf-8")
 print(cat[["tabela", "atributo", "dominio_observado", "nulos_observados"]].to_string())

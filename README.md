@@ -1,7 +1,7 @@
 # MVP — Pipeline de dados em nuvem: produção industrial × juros, câmbio e inflação
 
-**Universidade de Brasília — Departamento de Engenharia de Produção · Seminários (SSD/MVP)**  
-Aluno: Lucas Iwano · Professor: André Luiz Marques Serrano
+**Universidade de Brasília — Departamento de Engenharia de Produção · Sistemas de Suporte à Decisão (SSD)**  
+Aluno: Lucas Vilas Boas Iwano — matrícula 221021017 · Professor: André Luiz Marques Serrano
 
 > Repositório: https://github.com/iwanolucas/MVP-Industria-Juros  
 > Relatório em Word: `Relatorio_MVP_Industria_Juros_Lucas_Iwano.docx`
@@ -85,43 +85,43 @@ Adotou-se um esquema dimensional do tipo constelação de fatos, com duas tabela
 
 A escolha se justifica por três razões. As duas fontes têm o mesmo grão temporal (mês), o que torna o tempo a dimensão natural de integração. As métricas macro pertencem ao mês, não à atividade, e repeti-las em cada linha de produção multiplicaria por 27 o volume e o risco de inconsistência. Por fim, o esquema permite responder às perguntas com joins simples de SQL.
 
-![Modelo dimensional do MVP (catalogo/diagrama_estrela.png).](catalogo/diagrama_estrela.png)
+![Figura 1 — Modelo dimensional do MVP: constelação de fatos com dimensão tempo compartilhada (catalogo/diagrama_estrela.png).](catalogo/diagrama_estrela.png)
 
-*Modelo dimensional do MVP (catalogo/diagrama_estrela.png).*
+*Figura 1 — Modelo dimensional do MVP: constelação de fatos com dimensão tempo compartilhada (catalogo/diagrama_estrela.png).*
 
 
 ### 3.2 Catálogo de dados
 
-Os domínios abaixo foram lidos da própria base carregada, não declarados de memória. O catálogo completo, com descrição e linhagem de cada atributo, está em catalogo/catalogo_dados.md e .csv.
+Cada atributo tem dois domínios. O domínio esperado é declarado a priori, pelo significado do dado (por exemplo, número-índice estritamente positivo; variação percentual nunca abaixo de −100%; Selic entre 0 e 50% a.a.), e está codificado em scripts/dominios.py. O domínio observado é lido da base carregada. A análise de qualidade (Seção 5.1) confere, atributo a atributo, se o observado respeita o esperado. O catálogo completo, com descrição, obrigatoriedade e linhagem de cada atributo, está em catalogo/catalogo_dados.md e .csv.
 
-| Tabela | Atributo | Tipo | Domínio observado | Nulos | Linhagem (resumo) |
-|---|---|---|---|---|---|
-| dim_tempo | sk_tempo | inteiro (chave) | 200201 a 202609 | 0 | Gerada no ETL a partir do mês da fonte (R1). |
-| dim_tempo | data | data | 2002-01-01 a 2026-09-01 | 0 | Mês em português da SIDRA / data dd/mm/aaaa do SGS -> 1º dia do mês (R1, R4). |
-| dim_tempo | ano | inteiro | 2002 a 2026 | 0 | Derivado de data. |
-| dim_tempo | mes | inteiro | 1 a 12 | 0 | Derivado de data. |
-| dim_tempo | trimestre | inteiro | 1 a 4 | 0 | Derivado de data. |
-| dim_tempo | nome_mes | categórico | 12 categorias (ex.: Apr, Aug, Dec, Feb, …) | 0 | Derivado de data. |
-| dim_tempo | periodo_covid | booleano (0/1) | 0 a 1 | 0 | Regra fixa do ETL. |
-| dim_atividade | sk_atividade | inteiro (chave) | 1 a 27 | 0 | Sequência gerada no ETL. |
-| dim_atividade | codigo | categórico (texto) | 27 categorias (ex.: 1, 2, 3, 3.10, …) | 0 | Extraído do rótulo da atividade (R2). IBGE/SIDRA tabela 8888 (PIM-PF), variável 12606, coletada em 28/09/2026. |
-| dim_atividade | atividade | texto | texto livre (27 valores distintos) | 0 | Extraído do rótulo (R2). IBGE/SIDRA tabela 8888 (PIM-PF), variável 12606, coletada em 28/09/2026. |
-| dim_atividade | atividade_curta | texto | texto livre (27 valores distintos) | 0 | Derivado de atividade. |
-| dim_atividade | nivel | categórico | divisao, geral, secao | 0 | Derivado do código. |
-| dim_atividade | secao_pai | categórico | 3 | 3 | Derivado do código. |
-| fato_producao | sk_tempo | inteiro (FK) | 200201 a 202607 | 0 | FK para dim_tempo. |
-| fato_producao | sk_atividade | inteiro (FK) | 1 a 27 | 0 | FK para dim_atividade. |
-| fato_producao | indice | numérico | 9.39 a 316.93 | 240 | IBGE/SIDRA tabela 8888 (PIM-PF), variável 12606, coletada em 28/09/2026. '-' convertido em NULL (R3). |
-| fato_producao | var_yoy_pct | numérico (%) | -92.11 a 938.77 | 564 | Calculada no ETL (R6). |
-| fato_producao | flag_indice_ausente | booleano (0/1) | 0 a 1 | 0 | Derivado de indice. |
-| fato_macro | sk_tempo | inteiro (FK) | 200201 a 202609 | 0 | FK para dim_tempo. |
-| fato_macro | selic_aa | numérico (% a.a.) | 1.90 a 26.32 | 0 | BCB/SGS série 4189, coletada em 28/09/2026. |
-| fato_macro | ipca_mensal | numérico (% a.m.) | -0.68 a 3.02 | 1 | BCB/SGS série 433, coletada em 28/09/2026. |
-| fato_macro | ipca_12m | numérico (%) | 1.88 a 17.24 | 1 | BCB/SGS série 13522, coletada em 28/09/2026. |
-| fato_macro | dolar_medio | numérico (R$/US$) | 1.56 a 6.10 | 1 | BCB/SGS série 3698, coletada em 28/09/2026. |
-| fato_macro | selic_real_aa | numérico (% a.a.) | -4.44 a 12.95 | 1 | Calculada no ETL (R7) a partir de selic_aa e ipca_12m. |
-| fato_macro | var_cambial_12m_pct | numérico (%) | -26.90 a 67.45 | 13 | Calculada no ETL (R8). |
-| fato_macro | flag_tem_producao | booleano (0/1) | 0 a 1 | 0 | Derivado no ETL. |
+| Tabela | Atributo | Tipo | Descrição | Domínio esperado | Domínio observado | Nulos | Linhagem |
+|---|---|---|---|---|---|---|---|
+| dim_tempo | sk_tempo | inteiro (chave) | Chave do mês no formato AAAAMM. | 200201 a 202612 | 200201 a 202609 | 0 | Gerada no ETL a partir do mês da fonte (R1). |
+| dim_tempo | data | data | Primeiro dia do mês. | 2002-01-01 a 2026-12-01 | 2002-01-01 a 2026-09-01 | 0 | Mês em português da SIDRA / data dd/mm/aaaa do SGS -> 1º dia do mês (R1, R4). |
+| dim_tempo | ano | inteiro | Ano civil. | 2002 a 2026 | 2002 a 2026 | 0 | Derivado de data. |
+| dim_tempo | mes | inteiro | Mês civil (1–12). | 1 a 12 | 1 a 12 | 0 | Derivado de data. |
+| dim_tempo | trimestre | inteiro | Trimestre civil (1–4). | 1 a 4 | 1 a 4 | 0 | Derivado de data. |
+| dim_tempo | nome_mes | categórico | Abreviatura do mês gerada pelo locale do ambiente de execução (inglês: Jan…Dec). Usada só para rótulos. | 12 valores (Jan, Feb, Mar, …) | 12 categorias (ex.: Apr, Aug, Dec, Feb, …) | 0 | Derivado de data. |
+| dim_tempo | periodo_covid | booleano (0/1) | 1 entre mar/2020 e dez/2020 (choque inicial da pandemia); a análise usa janela mais larga (mar/2020–jun/2021). | 0, 1 | 0 a 1 | 0 | Regra fixa do ETL. |
+| dim_atividade | sk_atividade | inteiro (chave) | Chave substituta da atividade industrial. | 1 a 27 | 1 a 27 | 0 | Sequência gerada no ETL. |
+| dim_atividade | codigo | categórico (texto) | Código CNAE 2.0 da seção/divisão (1 = geral; 2 = extrativas; 3 = transformação; 3.10–3.33 = divisões). | 27 valores (1, 2, 3, …) | 27 categorias (ex.: 1, 2, 3, 3.10, …) | 0 | Extraído do rótulo da atividade (R2). IBGE/SIDRA tabela 8888 (PIM-PF), variável 12606, coletada em 28/09/2026. |
+| dim_atividade | atividade | texto | Nome oficial da atividade. | texto livre | texto livre (27 valores distintos) | 0 | Extraído do rótulo (R2). IBGE/SIDRA tabela 8888 (PIM-PF), variável 12606, coletada em 28/09/2026. |
+| dim_atividade | atividade_curta | texto | Nome sem o prefixo 'Fabricação de', cortado em 42 caracteres. As tabelas e os gráficos do relatório usam um nome curto revisado à mão (scripts/dominios.py). | texto livre | texto livre (27 valores distintos) | 0 | Derivado de atividade. |
+| dim_atividade | nivel | categórico | Nível hierárquico: geral, secao ou divisao. | geral, secao, divisao | divisao, geral, secao | 0 | Derivado do código. |
+| dim_atividade | secao_pai | categórico | Seção à qual a divisão pertence ('3'). Nulo para geral e seções. | 3 | 3 | 3 | Derivado do código. |
+| fato_producao | sk_tempo | inteiro (FK) | Mês da observação. | 200201 a 202612 | 200201 a 202607 | 0 | FK para dim_tempo. |
+| fato_producao | sk_atividade | inteiro (FK) | Atividade da observação. | 1 a 27 | 1 a 27 | 0 | FK para dim_atividade. |
+| fato_producao | indice | numérico | Número-índice de produção física (base 2022 = 100), sem ajuste sazonal. | 0,01 a 500 | 9.39 a 316.93 | 240 | IBGE/SIDRA tabela 8888 (PIM-PF), variável 12606, coletada em 28/09/2026. '-' convertido em NULL (R3). |
+| fato_producao | var_yoy_pct | numérico (%) | Variação % do índice frente ao mesmo mês do ano anterior. | ≥ -100 | -92.11 a 938.77 | 564 | Calculada no ETL (R6). |
+| fato_producao | flag_indice_ausente | booleano (0/1) | 1 quando o índice é nulo. | 0, 1 | 0 a 1 | 0 | Derivado de indice. |
+| fato_macro | sk_tempo | inteiro (FK) | Mês da observação. | 200201 a 202612 | 200201 a 202609 | 0 | FK para dim_tempo. |
+| fato_macro | selic_aa | numérico (% a.a.) | Taxa Selic acumulada no mês, anualizada (base 252). | 0 a 50 | 1.90 a 26.32 | 0 | BCB/SGS série 4189, coletada em 28/09/2026. |
+| fato_macro | ipca_mensal | numérico (% a.m.) | Variação mensal do IPCA. | -2 a 5 | -0.68 a 3.02 | 1 | BCB/SGS série 433, coletada em 28/09/2026. |
+| fato_macro | ipca_12m | numérico (%) | IPCA acumulado em 12 meses. | -5 a 30 | 1.88 a 17.24 | 1 | BCB/SGS série 13522, coletada em 28/09/2026. |
+| fato_macro | dolar_medio | numérico (R$/US$) | Taxa de câmbio livre, dólar (venda), média do mês. | 1 a 10 | 1.56 a 6.10 | 1 | BCB/SGS série 3698, coletada em 28/09/2026. |
+| fato_macro | selic_real_aa | numérico (% a.a.) | Juro real ex-post: (1+Selic)/(1+IPCA 12m) − 1. | -15 a 30 | -4.44 a 12.95 | 1 | Calculada no ETL (R7) a partir de selic_aa e ipca_12m. |
+| fato_macro | var_cambial_12m_pct | numérico (%) | Variação % do dólar médio frente ao mesmo mês do ano anterior (positivo = real desvalorizado). | ≥ -100 | -26.90 a 67.45 | 13 | Calculada no ETL (R8). |
+| fato_macro | flag_tem_producao | booleano (0/1) | 1 quando o mês também existe na PIM-PF (R9). | 0, 1 | 0 a 1 | 0 | Derivado no ETL. |
 
 Sobre a obrigatoriedade: os únicos nulos com significado próprio são (a) o índice das divisões 3.18 (Impressão) e 3.33 (Manutenção), que o IBGE só publica a partir de 2012, (b) os 12 primeiros meses de variação anual e cambial, que dependem de um ano de histórico, e (c) os campos do mês corrente do BCB (setembro/2026), ainda sem divulgação completa. Nenhum nulo foi imputado.
 
@@ -162,39 +162,53 @@ Foram verificadas as integridades referencial (toda chave das fatos existe nas d
 
 Execução realizada em 28/09/2026 no Databricks Free Edition (workspace da conta do aluno, compute serverless), a partir de uma Git folder ligada ao repositório público do GitHub. Os três notebooks foram executados em ordem e as capturas de tela estão referenciadas abaixo.
 
-Notebook 01 (bronze). O ambiente Free Edition não tem saída para a internet: a primeira execução falhou ao chamar a API do IBGE com erro de resolução de DNS ("Failed to resolve 'apisidra.ibge.gov.br'"). O notebook foi então alterado para tentar a API e, em caso de falha, copiar para o Volume o bronze versionado no repositório, que foi coletado pelo script coleta.py em 28/09/2026 (manifesto com URL, volume e SHA-256). Portanto, a coleta a partir das APIs ocorreu na máquina local, e a persistência na nuvem parte do arquivo bruto. A Figura 7 mostra os seis arquivos no Volume workspace.industria_juros.raw (o JSON da PIM-PF tem 1.650.738 bytes, igual ao manifesto).
+Notebook 01 (bronze). O ambiente Free Edition não tem saída para a internet: a primeira execução falhou ao chamar a API do IBGE com erro de resolução de DNS ("Failed to resolve 'apisidra.ibge.gov.br'"). O notebook foi então alterado para tentar a API e, em caso de falha, copiar para o Volume o bronze versionado no repositório, que foi coletado pelo script coleta.py em 28/09/2026 (manifesto com URL, volume e SHA-256). Portanto, a coleta a partir das APIs ocorreu na máquina local, e a persistência na nuvem parte do arquivo bruto. A Figura 2 mostra os seis arquivos no Volume workspace.industria_juros.raw (o JSON da PIM-PF tem 1.650.738 bytes, igual ao manifesto).
 
-Notebook 02 (silver e gold). O ETL rodou dentro do Databricks e gravou as quatro tabelas Delta em workspace.industria_juros. As contagens de linhas são idênticas às da execução local: dim_tempo 297, dim_atividade 27, fato_producao 7.965 e fato_macro 297 (Figura 8). O DESCRIBE HISTORY da fato_producao mostra a versão 0 criada por CREATE OR REPLACE TABLE AS SELECT, em 28/09/2026, pelo usuário da conta, o que comprova a persistência (Figura 9).
+Notebook 02 (silver e gold). O ETL rodou dentro do Databricks e gravou as quatro tabelas Delta em workspace.industria_juros. As contagens de linhas são idênticas às da execução local: dim_tempo 297, dim_atividade 27, fato_producao 7.965 e fato_macro 297 (Figura 3). O DESCRIBE HISTORY da fato_producao mostra a versão 0 criada por CREATE OR REPLACE TABLE AS SELECT, em 28/09/2026, pelo usuário da conta, o que comprova a persistência (Figura 4).
 
-Notebook 03 (análise). As consultas SQL sobre as tabelas Delta reproduzem os resultados locais: a completude do índice (Figura 10) mostra 120 meses ausentes em 3.18 e 3.33; o P1 em SQL (Figura 11) dá −33,1% para Impressão e −27,0% para Confecção, iguais aos do pandas; o P4 em Spark SQL (Figura 12) dá desvios de 19,6, 17,0, 16,9 e 16,7 p.p. para Fumo, Informática, Veículos e Impressão. A execução de scripts/analise.py sobre as tabelas Delta reproduziu o teste de permutação do P2 (Figura 13): 2.000 permutações, 0 de 27 séries significativas, 11 correlações negativas, e Produtos químicos com r = −0,211, defasagem de 2 meses e p = 0,209, valores idênticos aos da execução local (semente 42).
+Notebook 03 (análise). As consultas SQL sobre as tabelas Delta reproduzem os resultados locais: a completude do índice (Figura 5) mostra 120 meses ausentes em 3.18 e 3.33; o P1 em SQL (Figura 6) dá −33,1% para Impressão e −27,0% para Confecção, iguais aos do pandas; o P4 em Spark SQL (Figura 7) dá desvios de 19,6, 17,0, 16,9 e 16,7 p.p. para Fumo, Informática, Veículos e Impressão. A execução de scripts/analise.py sobre as tabelas Delta reproduziu o teste de permutação do P2 (Figura 8): 2.000 permutações, 0 de 27 séries significativas, 11 correlações negativas, e Produtos químicos com r = −0,211, defasagem de 2 meses e p = 0,209, valores idênticos aos da execução local (semente 42).
 
-![Figura 7 — Notebook 01: arquivos brutos no Volume workspace.industria_juros.raw.](evidencias/nuvem_01_bronze_volume.jpg)
+![Figura 2 — Notebook 01: arquivos brutos no Volume workspace.industria_juros.raw.](evidencias/nuvem_01_bronze_volume.jpg)
 
-*Figura 7 — Notebook 01: arquivos brutos no Volume workspace.industria_juros.raw.*
+*Figura 2 — Notebook 01: arquivos brutos no Volume workspace.industria_juros.raw.*
 
-![Figura 8 — Notebook 02: contagem das quatro tabelas Delta após a carga.](evidencias/nuvem_02_tabelas_delta_contagem.jpg)
+![Figura 3 — Notebook 02: contagem das quatro tabelas Delta após a carga.](evidencias/nuvem_02_tabelas_delta_contagem.jpg)
 
-*Figura 8 — Notebook 02: contagem das quatro tabelas Delta após a carga.*
+*Figura 3 — Notebook 02: contagem das quatro tabelas Delta após a carga.*
 
-![Figura 9 — Notebook 02: DESCRIBE HISTORY da fato_producao (persistência Delta).](evidencias/nuvem_02_delta_describe_history.jpg)
+![Figura 4 — Notebook 02: DESCRIBE HISTORY da fato_producao (persistência Delta).](evidencias/nuvem_02_delta_describe_history.jpg)
 
-*Figura 9 — Notebook 02: DESCRIBE HISTORY da fato_producao (persistência Delta).*
+*Figura 4 — Notebook 02: DESCRIBE HISTORY da fato_producao (persistência Delta).*
 
-![Figura 10 — Notebook 03: qualidade do índice por atividade, em SQL sobre o Delta.](evidencias/nuvem_03_qualidade_sql.jpg)
+![Figura 5 — Notebook 03: qualidade do índice por atividade, em SQL sobre o Delta.](evidencias/nuvem_03_qualidade_sql.jpg)
 
-*Figura 10 — Notebook 03: qualidade do índice por atividade, em SQL sobre o Delta.*
+*Figura 5 — Notebook 03: qualidade do índice por atividade, em SQL sobre o Delta.*
 
-![Figura 11 — Notebook 03: P1 em SQL (variação vs. média de 2019).](evidencias/nuvem_03_P1_recuperacao_sql.jpg)
+![Figura 6 — Notebook 03: P1 em SQL (variação vs. média de 2019).](evidencias/nuvem_03_P1_recuperacao_sql.jpg)
 
-*Figura 11 — Notebook 03: P1 em SQL (variação vs. média de 2019).*
+*Figura 6 — Notebook 03: P1 em SQL (variação vs. média de 2019).*
 
-![Figura 12 — Notebook 03: P4 em SQL (desvio-padrão do crescimento anual).](evidencias/nuvem_03_P4_volatilidade_sql.jpg)
+![Figura 7 — Notebook 03: P4 em SQL (desvio-padrão do crescimento anual).](evidencias/nuvem_03_P4_volatilidade_sql.jpg)
 
-*Figura 12 — Notebook 03: P4 em SQL (desvio-padrão do crescimento anual).*
+*Figura 7 — Notebook 03: P4 em SQL (desvio-padrão do crescimento anual).*
 
-![Figura 13 — Notebook 03: saída do P2 executado sobre as tabelas Delta.](evidencias/nuvem_03_P2_analise_python.jpg)
+![Figura 8 — Notebook 03: saída do P2 executado sobre as tabelas Delta.](evidencias/nuvem_03_P2_analise_python.jpg)
 
-*Figura 13 — Notebook 03: saída do P2 executado sobre as tabelas Delta.*
+*Figura 8 — Notebook 03: saída do P2 executado sobre as tabelas Delta.*
+
+
+### 4.4 Uso de recursos e custo de operação
+
+O enunciado pede evidência de viabilidade financeira: uso de recursos compatível com o problema e custo de operação estimado. O volume é pequeno: 1,7 MB de JSON bruto e 8.586 linhas nas quatro tabelas Delta. Uma execução completa (três notebooks) roda em compute serverless de menor porte, sem cluster dedicado.
+
+| Item | Neste MVP | Operação contínua (estimativa) |
+|---|---|---|
+| Plataforma | Databricks Free Edition | Workspace pago (Premium), job serverless |
+| Computação | R$ 0 (cota gratuita) | Ordem de 1 DBU por execução × US$ 0,35/DBU (preço de lista de Jobs Serverless, AWS Premium, conferido em nov/2026) ≈ US$ 0,35 por mês, com uma execução mensal |
+| Armazenamento | R$ 0 | 1,7 MB brutos + tabelas Delta: custo de armazenamento desprezível (centavos por mês) |
+| Coleta | APIs públicas, sem chave e sem custo | Idem |
+
+O consumo de DBU não foi medido: o Free Edition não expõe esse número, e a linha de 1 DBU por execução é uma ordem de grandeza para três notebooks curtos sobre menos de 2 MB, não uma medição. Mesmo multiplicada por dez, a operação mensal fica abaixo de US$ 5. Conclusão: o custo não é obstáculo. A restrição real observada foi técnica: o Free Edition não acessa a internet, o que obrigou a separar a coleta (local) da persistência (nuvem), como descrito na Seção 4.3.
 
 
 ## 5. Análise
@@ -202,50 +216,81 @@ Notebook 03 (análise). As consultas SQL sobre as tabelas Delta reproduzem os re
 
 ### 5.1 Qualidade dos dados
 
-Todos os atributos foram verificados nas seis dimensões usuais. Os números abaixo são gerados pelo script de análise (data/processed/resultados.json).
+A qualidade foi verificada em dois níveis. Primeiro, atributo a atributo: para cada um dos 26 atributos das quatro tabelas, mediram-se completude, número de valores distintos e aderência ao domínio esperado declarado no catálogo (Seção 3.2). Depois, nas seis dimensões usuais, com testes que cruzam atributos e fontes. Todos os números vêm do script de análise (data/processed/resultados.json e tab_qualidade_atributos.csv).
+
+| Tabela | Atributo | Completude | Nulos | Distintos | Fora do domínio esperado |
+|---|---|---|---|---|---|
+| dim_tempo | sk_tempo | 100,0% | 0 | 297 | 0 |
+| dim_tempo | data | 100,0% | 0 | 297 | 0 |
+| dim_tempo | ano | 100,0% | 0 | 25 | 0 |
+| dim_tempo | mes | 100,0% | 0 | 12 | 0 |
+| dim_tempo | trimestre | 100,0% | 0 | 4 | 0 |
+| dim_tempo | nome_mes | 100,0% | 0 | 12 | 0 |
+| dim_tempo | periodo_covid | 100,0% | 0 | 2 | 0 |
+| dim_atividade | sk_atividade | 100,0% | 0 | 27 | 0 |
+| dim_atividade | codigo | 100,0% | 0 | 27 | 0 |
+| dim_atividade | atividade | 100,0% | 0 | 27 | 0 |
+| dim_atividade | atividade_curta | 100,0% | 0 | 27 | 0 |
+| dim_atividade | nivel | 100,0% | 0 | 3 | 0 |
+| dim_atividade | secao_pai | 88,9% | 3 | 1 | 0 |
+| fato_producao | sk_tempo | 100,0% | 0 | 295 | 0 |
+| fato_producao | sk_atividade | 100,0% | 0 | 27 | 0 |
+| fato_producao | indice | 97,0% | 240 | 7.723 | 0 |
+| fato_producao | var_yoy_pct | 92,9% | 564 | 7.401 | 0 |
+| fato_producao | flag_indice_ausente | 100,0% | 0 | 2 | 0 |
+| fato_macro | sk_tempo | 100,0% | 0 | 297 | 0 |
+| fato_macro | selic_aa | 100,0% | 0 | 198 | 0 |
+| fato_macro | ipca_mensal | 99,7% | 1 | 123 | 0 |
+| fato_macro | ipca_12m | 99,7% | 1 | 240 | 0 |
+| fato_macro | dolar_medio | 99,7% | 1 | 294 | 0 |
+| fato_macro | selic_real_aa | 99,7% | 1 | 295 | 0 |
+| fato_macro | var_cambial_12m_pct | 95,6% | 13 | 284 | 0 |
+| fato_macro | flag_tem_producao | 100,0% | 0 | 2 | 0 |
+
+Resultado atributo a atributo: 0 dos 26 atributos têm valores fora do domínio esperado, e 8 têm nulos, todos explicados na Seção 3.2 (séries que o IBGE só publica a partir de 2012, variações que dependem de 12 meses de histórico e o mês corrente do BCB). As chaves primárias das quatro tabelas não têm duplicatas (0 no total) e não há chave estrangeira órfã (0 no total). O índice tem 7.723 valores distintos em 7.965 linhas e a Selic, 198 em 297 meses; repetições são esperadas em séries arredondadas a duas casas e não indicam duplicação, já descartada pelo teste de chave.
 
 | Dimensão | Verificação | Resultado | Tratamento |
 |---|---|---|---|
 | Completude | Nulos por atributo | Índice: 240 nulos, todos nas divisões 3.18 e 3.33 entre jan/2002 e dez/2011. IPCA e dólar: 1 nulo cada (set./2026). | Não imputados. As séries são usadas só a partir de 2013, período em que todas as 27 estão completas. |
 | Unicidade | Duplicatas em (mês, atividade) | 0 duplicatas; 0 lacunas de mês em qualquer série. | Nenhum. |
 | Consistência | Variação anual recalculada; IPCA 12m oficial vs. composição do IPCA mensal; indústria geral vs. seções | Diferença máxima da variação anual: 1e-14 p.p.; IPCA 12m: diferença média de 0,0025 p.p. (máxima 0,009 p.p., arredondamento); a indústria geral fica entre as seções em 100% dos meses. | Nenhum. Fontes coerentes entre si. |
-| Conformidade | Aderência ao domínio | Índice > 0 em 100% das linhas (mín. 9,4; máx. 316,9). Selic 1,9–26,3% a.a.; dólar R$ 1,56–6,10. | Nenhum. Todos plausíveis. |
-| Acurácia | Outliers da variação anual (/z robusto/ > 5) | 58 pontos, dos quais 48 em mar/2020–jun/2021 (choque e rebote: maior valor, veículos em abr/2021, +939% sobre a base do lockdown) e 10 fora dele. | A janela de pandemia é excluída das estatísticas (P2 a P5); os 10 pontos restantes são mantidos (variações reais de setores voláteis). |
+| Conformidade | Aderência ao domínio esperado do catálogo | 0 atributos fora do domínio (tabela acima). Índice > 0 em 100% das linhas (mín. 9,4; máx. 316,9). Selic 1,9–26,3% a.a.; dólar R$ 1,56–6,10. | Nenhum. Todos plausíveis. |
+| Acurácia | Outliers da variação anual (z robusto, em módulo, acima de 5) | 58 pontos, dos quais 48 em mar/2020–jun/2021 (choque e rebote: maior valor, veículos em abr/2021, +939% sobre a base do lockdown) e 10 fora dele. | A janela de pandemia é excluída das estatísticas (P2 a P5); os 10 pontos restantes são mantidos (variações reais de setores voláteis). |
 | Atualidade | Defasagem entre fontes | PIM-PF vai até jul/2026; o BCB, até 2026/09 (defasagem de 2 meses). O último mês do BCB é parcial. | Junção por interseção (R9); o cenário P5 usa o último juro real completo (ago./2026). |
 
-![Figura 1 — Meses sem informação no IBGE: apenas as divisões 3.18 e 3.33, antes de 2012.](evidencias/fig6_qualidade_ausencias.png)
+![Figura 9 — Meses sem informação no IBGE: apenas as divisões 3.18 e 3.33, antes de 2012.](evidencias/fig6_qualidade_ausencias.png)
 
-*Figura 1 — Meses sem informação no IBGE: apenas as divisões 3.18 e 3.33, antes de 2012.*
+*Figura 9 — Meses sem informação no IBGE: apenas as divisões 3.18 e 3.33, antes de 2012.*
 
-Ressalva importante: o índice não tem ajuste sazonal. A série industrial oscila fortemente entre meses por sazonalidade (Figura 2), o que torna inadequada a comparação mês a mês. Por isso toda a análise usa variação contra o mesmo mês do ano anterior, que elimina a sazonalidade, e médias de 12 meses.
+Ressalva importante: o índice não tem ajuste sazonal. A série industrial oscila fortemente entre meses por sazonalidade (Figura 10), o que torna inadequada a comparação mês a mês. Por isso toda a análise usa variação contra o mesmo mês do ano anterior, que elimina a sazonalidade, e médias de 12 meses.
 
-![Figura 2 — Produção industrial (índice sem ajuste sazonal) e juro real ex-post, 2002–2026.](evidencias/fig1_industria_e_juro_real.png)
+![Figura 10 — Produção industrial (índice sem ajuste sazonal) e juro real ex-post, 2002–2026.](evidencias/fig1_industria_e_juro_real.png)
 
-*Figura 2 — Produção industrial (índice sem ajuste sazonal) e juro real ex-post, 2002–2026.*
+*Figura 10 — Produção industrial (índice sem ajuste sazonal) e juro real ex-post, 2002–2026.*
 
 Amostra de análise. Para P2 a P5 usa-se janeiro/2013 a julho/2026, excluindo mar/2020–jun/2021: 147 meses, comum às 27 atividades. O corte em 2013 é o primeiro mês em que as duas divisões de série curta têm variação anual; a exclusão da pandemia evita que um único choque de +900% domine correlações e regressões.
 
 
 ### 5.2 P1 — Recuperação em relação a 2019
 
-O agregado voltou: a indústria geral produz hoje (média dos últimos 12 meses) 3,0% acima da média de 2019, com queda máxima de 31% no fundo de 2020 e retorno sustentado ao patamar de 2019 em 4 meses. As extrativas estão 10,3% acima, e a indústria de transformação, 1,5% acima. A média, porém, esconde a divisão: das 24 divisões da transformação, 13 ainda estão abaixo de 2019 e 11 acima (Figura 3).
+O agregado voltou: a indústria geral produz hoje (média dos últimos 12 meses) 3,0% acima da média de 2019, com queda máxima de 31% no fundo de 2020 e retorno sustentado ao patamar de 2019 em 4 meses. As extrativas estão 10,3% acima, e a indústria de transformação, 1,5% acima. A média, porém, esconde a divisão: das 24 divisões da transformação, 13 ainda estão abaixo de 2019 e 11 acima (Figura 11).
 
-![Figura 3 — Produção atual vs. média de 2019 por divisão (P1).](evidencias/fig2_P1_recuperacao_pre_pandemia.png)
+![Figura 11 — Produção atual vs. média de 2019 por divisão (P1).](evidencias/fig2_P1_recuperacao_pre_pandemia.png)
 
-*Figura 3 — Produção atual vs. média de 2019 por divisão (P1).*
+*Figura 11 — Produção atual vs. média de 2019 por divisão (P1).*
 
 | Cód. | Divisão | Atual vs. 2019 | Queda máx. 2020 | Meses p/ recuperar |
 |---|---|---|---|---|
 | 3.18 | Impressão e reprodução de gravações | -33,1% | -66% | não recuperou |
-| 3.14 | Confecção de artigos do vestuário e acessó | -27,0% | -67% | não recuperou |
-| 3.31 | móveis | -17,3% | -61% | 4 |
-| 3.15 | couros e fabricação de artefatos de couro, | -16,1% | -70% | 6 |
-| 3.32 | produtos diversos | -15,7% | -49% | não recuperou |
-| 3.17 | celulose, papel e produtos de papel | +7,7% | -6% | 4 |
-| 3.30 | outros equipamentos de transporte, exceto  | +10,3% | -81% | 29 |
-| 3.28 | máquinas e equipamentos | +10,7% | -41% | 5 |
-| 3.19 | coque, de produtos derivados do petróleo e | +14,8% | -16% | 2 |
-| 3.12 | produtos do fumo | +38,4% | 2% | 0 |
+| 3.14 | Vestuário e acessórios | -27,0% | -67% | não recuperou |
+| 3.31 | Móveis | -17,3% | -61% | 4 |
+| 3.15 | Couro, artigos de viagem e calçados | -16,1% | -70% | 6 |
+| 3.32 | Produtos diversos | -15,7% | -49% | não recuperou |
+| 3.17 | Celulose e papel | +7,7% | -6% | 4 |
+| 3.30 | Outros equipamentos de transporte | +10,3% | -81% | 29 |
+| 3.28 | Máquinas e equipamentos | +10,7% | -41% | 5 |
+| 3.19 | Derivados de petróleo e biocombustíveis | +14,8% | -16% | 2 |
+| 3.12 | Fumo | +38,4% | 2% | 0 |
 
 Resposta a P1. Os cinco piores casos são Impressão (−33%), Confecção (−27%), Móveis (−17%), Couro e calçados (−16%) e Produtos diversos (−16%): atividades intensivas em mão de obra e ligadas ao consumo das famílias e à impressão de mídia física. Os cinco melhores são Fumo (+38%), Derivados de petróleo (+15%), Máquinas e equipamentos (+11%), Outros equipamentos de transporte (+10%) e Celulose e papel (+8%), setores ligados a commodities, energia e bens de capital. Quatro divisões (Impressão, Confecção, Produtos diversos e Manutenção) nunca tiveram três meses seguidos acima da média de 2019 desde o choque. Veículos automotores levou 52 meses para recuperar o patamar, e Outros equipamentos de transporte, 29, embora ambos tenham a maior queda inicial (−92% e −81%). H3 confirmada: a recuperação foi desigual, e o agregado (+3,0%) esconde 13 divisões abaixo do nível pré-pandemia.
 
@@ -254,20 +299,20 @@ Cautela: comparar com a média de um único ano (2019) é uma escolha de base. 2
 
 ### 5.3 P2 — Sensibilidade ao juro real
 
-Para cada uma das 27 atividades calculou-se a correlação entre o crescimento anual em t e o juro real em t−k. para k de 0 a 12 meses (Figura 4). O sinal esperado por H1 é negativo. Como a escolha do melhor k dentre 13 defasagens infla a chance de achar correlação por acaso. e as séries são altamente autocorrelacionadas. a significância foi avaliada por um teste de permutação: o juro real é deslocado circularmente (2.000 deslocamentos aleatórios) e compara-se a correlação mais negativa observada com a distribuição do mínimo sobre as 13 defasagens.
+Para cada uma das 27 atividades calculou-se a correlação entre o crescimento anual em t e o juro real em t−k, para k de 0 a 12 meses (Figura 12). O sinal esperado por H1 é negativo. Como a escolha do melhor k dentre 13 defasagens infla a chance de achar correlação por acaso, e as séries são altamente autocorrelacionadas, a significância foi avaliada por um teste de permutação: o juro real é deslocado circularmente (2.000 deslocamentos aleatórios) e compara-se a correlação mais negativa observada com a distribuição do mínimo sobre as 13 defasagens.
 
-![Figura 4 — Correlação juro real × crescimento anual por defasagem, divisões da transformação (P2).](evidencias/fig3_P2_correlacao_por_defasagem.png)
+![Figura 12 —Correlação juro real × crescimento anual por defasagem, divisões da transformação (P2).](evidencias/fig3_P2_correlacao_por_defasagem.png)
 
-*Figura 4 — Correlação juro real × crescimento anual por defasagem, divisões da transformação (P2).*
+*Figura 12 —Correlação juro real × crescimento anual por defasagem, divisões da transformação (P2).*
 
 | Atividade | Defasagem | Correlação | p (permutação) |
 |---|---|---|---|
-| 3.20 produtos químicos | 2 | -0,21 | 0,21 |
-| 3.19 coque, de produtos derivados do petróleo e | 0 | -0,21 | 0,27 |
-| 3.28 máquinas e equipamentos | 2 | -0,20 | 0,21 |
-| 3.30 outros equipamentos de transporte, exceto  | 12 | -0,18 | 0,46 |
-| 3.16 produtos de madeira | 0 | -0,17 | 0,39 |
-| 3.23 produtos de minerais não metálicos | 0 | -0,14 | 0,58 |
+| 3.20 Químicos | 2 | -0,21 | 0,21 |
+| 3.19 Derivados de petróleo e biocombustíveis | 0 | -0,21 | 0,27 |
+| 3.28 Máquinas e equipamentos | 2 | -0,20 | 0,21 |
+| 3.30 Outros equipamentos de transporte | 12 | -0,18 | 0,46 |
+| 3.16 Madeira | 0 | -0,17 | 0,39 |
+| 3.23 Minerais não metálicos | 0 | -0,14 | 0,58 |
 | 1 Indústria geral | 0 | +0,19 | 0,91 |
 
 Resposta a P2. Não há evidência de que o juro real explique o crescimento anual em nenhuma atividade: 0 das 27 séries têm p < 0,05 no teste de permutação. Só 11 das 27 correlações têm o sinal esperado, e a mais forte (Produtos químicos, defasagem de 2 meses) é de apenas −0,21, com p = 0,21. Para a indústria geral a correlação é positiva (+0,19), o oposto de H1. A defasagem mediana ótima é 0 mês, ou seja, não há padrão temporal identificável. H1 não é sustentada por estes dados.
@@ -277,23 +322,23 @@ Interpretação. Três explicações são plausíveis, e a análise não separa 
 
 ### 5.4 P3 — Câmbio, controlando o juro
 
-Para cada atividade estimou-se por mínimos quadrados o crescimento anual contra o juro real defasado (no lag ótimo de P2) e a variação cambial de 12 meses, com erros-padrão robustos a autocorrelação e heterocedasticidade (Newey-West, 12 defasagens). A Figura 5 mostra os coeficientes com intervalos de 95%.
+Para cada atividade estimou-se por mínimos quadrados o crescimento anual contra o juro real defasado (no lag ótimo de P2) e a variação cambial de 12 meses, com erros-padrão robustos a autocorrelação e heterocedasticidade (Newey-West, 12 defasagens). A Figura 13 mostra os coeficientes com intervalos de 95%.
 
-![Figura 5 — Coeficientes de juro real e de câmbio por divisão (P3).](evidencias/fig4_P3_coeficientes.png)
+![Figura 13 — Coeficientes de juro real e de câmbio por divisão (P3).](evidencias/fig4_P3_coeficientes.png)
 
-*Figura 5 — Coeficientes de juro real e de câmbio por divisão (P3).*
+*Figura 13 — Coeficientes de juro real e de câmbio por divisão (P3).*
 
 | Atividade | β câmbio (p.p. por 1% de desvalorização) | estatística t |
 |---|---|---|
-| 3.33 Manutenção, reparação e instalação de máqu | -0,16 | -4,18 |
+| 3.33 Manutenção e reparação de máquinas | -0,16 | -4,18 |
 | 3.18 Impressão e reprodução de gravações | -0,33 | -2,98 |
-| 3.15 couros e fabricação de artefatos de couro, | -0,12 | -2,86 |
-| 3.26 equipamentos de informática, produtos elet | -0,45 | -2,61 |
+| 3.15 Couro, artigos de viagem e calçados | -0,12 | -2,86 |
+| 3.26 Informática, eletrônicos e ópticos | -0,45 | -2,61 |
 | 3.24 Metalurgia | -0,15 | -2,50 |
-| 3.29 veículos automotores, reboques e carroceri | -0,41 | -2,47 |
+| 3.29 Veículos automotores | -0,41 | -2,47 |
 | 1 Indústria geral | -0,12 | -2,42 |
 
-Resposta a P3. O câmbio tem associação estatisticamente significativa em 9 das 27 atividades, e em todas o sinal é negativo: desvalorização do real acompanha crescimento anual menor. Para a indústria geral, cada 1% de desvalorização em 12 meses está associado a 0,12 p.p. a menos de crescimento anual (t = -2,4). Os maiores efeitos estão em Informática/eletrônicos, Veículos e Impressão, que dependem de insumos e componentes importados. Não há atividade com efeito positivo significativo, portanto a parte de H2 sobre exportadores não se confirma. A ressalva: o poder explicativo é baixo (R² mediano 0,06; máximo 0,21, em produtos de borracha e de material plástic), e as grandes desvalorizações do período (2015 e 2020) coincidem com recessões, de modo que o coeficiente pode refletir o ciclo econômico em vez do câmbio em si.
+Resposta a P3. O câmbio tem associação estatisticamente significativa em 9 das 27 atividades, e em todas o sinal é negativo: desvalorização do real acompanha crescimento anual menor. Para a indústria geral, cada 1% de desvalorização em 12 meses está associado a 0,12 p.p. a menos de crescimento anual (t = -2,4). Os maiores efeitos estão em Informática/eletrônicos, Veículos e Impressão, que dependem de insumos e componentes importados. Não há atividade com efeito positivo significativo, portanto a parte de H2 sobre exportadores não se confirma. A ressalva: o poder explicativo é baixo (R² mediano 0,06; máximo 0,21, em Borracha e plástico), e as grandes desvalorizações do período (2015 e 2020) coincidem com recessões, de modo que o coeficiente pode refletir o ciclo econômico em vez do câmbio em si.
 
 
 ### 5.5 P4 — Volatilidade
@@ -307,18 +352,18 @@ Resposta a P4. A razão entre a divisão mais e a menos volátil é de 4,5 vezes
 
 O cenário aplica ao coeficiente de juro de cada atividade uma queda de 3 p.p. (de 9,3% a.a. em 2026/08, com Selic de 13,79% e IPCA 12m de 4,22%, para cerca de 6,3%, próximo à média histórica de 5,5%). O intervalo de 95% usa o erro-padrão robusto.
 
-![Figura 6 — Efeito projetado de −3 p.p. de juro real vs. volatilidade (P4/P5).](evidencias/fig5_P4_P5_sensibilidade_volatilidade.png)
+![Figura 14 — Efeito projetado de −3 p.p. de juro real vs. volatilidade (P4/P5).](evidencias/fig5_P4_P5_sensibilidade_volatilidade.png)
 
-*Figura 6 — Efeito projetado de −3 p.p. de juro real vs. volatilidade (P4/P5).*
+*Figura 14 — Efeito projetado de −3 p.p. de juro real vs. volatilidade (P4/P5).*
 
 | Atividade | Efeito projetado (p.p.) | IC 95% | IC exclui zero? |
 |---|---|---|---|
 | 1 Indústria geral | -0,31 | [-1,31; 0,69] | não |
 | 3 Indústrias de transformação | +0,12 | [-1,19; 1,44] | não |
-| 3.28 máquinas e equipamentos | +2,44 | [0,31; 4,56] | sim |
-| 3.19 coque, de produtos derivados do petróleo e | +1,65 | [0,01; 3,28] | sim |
+| 3.28 Máquinas e equipamentos | +2,44 | [0,31; 4,56] | sim |
+| 3.19 Derivados de petróleo e biocombustíveis | +1,65 | [0,01; 3,28] | sim |
 | 3.18 Impressão e reprodução de gravações | +3,24 | [-1,60; 8,09] | não |
-| 3.31 móveis | -2,80 | [-6,34; 0,74] | não |
+| 3.31 Móveis | -2,80 | [-6,34; 0,74] | não |
 
 Resposta a P5. Para a indústria geral o modelo projeta -0,31 p.p. de crescimento anual (IC 95%: -1,3 a +0,7), isto é, efeito indistinguível de zero e com sinal contrário ao esperado. Entre as 24 divisões, 15 têm efeito projetado positivo, mas em apenas 2 o intervalo exclui zero: Máquinas e equipamentos (+2,4 p.p.; IC +0,3 a +4,6; defasagem de 2 meses) e Derivados de petróleo (+1,7 p.p.; IC +0,01 a +3,3). Com 24 testes a 5%, esperam-se cerca de 1,2 falsos positivos por acaso, e nenhuma das duas sobrevive à correção do P2 (p = 0,21 e 0,27). Os efeitos de maior magnitude (Impressão +3,2 p.p.) têm IC que inclui grandes valores negativos. As extrativas têm efeito significativo com sinal invertido (−1,2 p.p.), consistente com o ciclo de commodities, e não com causalidade dos juros.
 
@@ -327,7 +372,9 @@ Discussão geral. Os resultados formam um quadro coerente, embora em parte negat
 
 ## 6. Ética, licenciamento e proteção de dados
 
-- Licença dos dados. Ambas as fontes são estatísticas públicas divulgadas como dados abertos: IBGE (SIDRA) e Banco Central do Brasil (SGS). Exigem citação da fonte. A licença específica de cada conjunto não foi verificada automaticamente nesta execução, e deve ser conferida em sidra.ibge.gov.br e dadosabertos.bcb.gov.br antes de qualquer reutilização comercial. Por serem séries agregadas de tamanho pequeno (cerca de 1,7 MB), os arquivos brutos foram versionados para garantir reprodutibilidade; o script de coleta também está publicado.
+- Licença dos dados do Banco Central (SGS). As séries 4189, 433, 13522 e 3698 estão publicadas no Portal de Dados Abertos do BCB (dadosabertos.bcb.gov.br) sob a Open Data Commons Open Database License (ODbL). A ODbL permite redistribuir e criar bases derivadas, com duas condições: atribuição da fonte e compartilhamento da base derivada sob a mesma licença. Por isso as tabelas derivadas publicadas em data/processed (fato_macro e o arquivo dw_industria.sqlite) são distribuídas também sob a ODbL, com atribuição ao BCB (registro no arquivo LICENSE).
+- Licença dos dados do IBGE (SIDRA, tabela 8888). A PIM-PF é estatística oficial de divulgação pública. A reprodução é aceita com citação obrigatória da fonte, e o trabalho cita "IBGE, Pesquisa Industrial Mensal – Produção Física, tabela 8888 (SIDRA)" no README, no catálogo e no relatório. Não foi localizada uma licença aberta formal (do tipo CC ou ODbL) específica para a tabela, e isso fica registrado aqui. Para reutilização comercial, convém confirmar os termos diretamente com o IBGE.
+- Versionamento dos dados brutos. Como as duas fontes permitem redistribuição com atribuição, e os arquivos são pequenos (cerca de 1,7 MB), os JSON brutos foram versionados em data/raw para garantir reprodutibilidade, inclusive no Databricks Free Edition, que não acessa a internet. O script de coleta também está publicado, e o manifesto registra URL, data e hash SHA-256 de cada arquivo.
 - Dados pessoais (LGPD). Não se aplica: as bases são agregados nacionais mensais, sem identificadores de pessoas ou empresas.
 - Dados corporativos. Não se aplica: nenhum dado de empresa foi utilizado.
 - Coleta automatizada. Foram usadas apenas APIs oficiais, sem scraping, com pausa entre tentativas.

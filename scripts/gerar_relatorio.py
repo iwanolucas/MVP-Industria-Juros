@@ -3,6 +3,7 @@
 Uso: python scripts/gerar_relatorio.py [caminho_docx]
 """
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -24,7 +25,21 @@ CAT = pd.read_csv(ROOT / "catalogo" / "catalogo_dados.csv")
 P1 = pd.read_csv(PROC / "tab_P1_recuperacao.csv", dtype={"codigo": str})
 P5 = pd.read_csv(PROC / "tab_P5_cenario.csv", dtype={"codigo": str})
 NUVEM = json.loads((EVID / "nuvem_status.json").read_text(encoding="utf-8")) if (EVID / "nuvem_status.json").exists() else {"executado": False}
+QATTR = pd.read_csv(PROC / "tab_qualidade_atributos.csv")
 REPO = "https://github.com/iwanolucas/MVP-Industria-Juros"
+DISCIPLINA = "Sistemas de Suporte à Decisão (SSD)"
+ALUNO = "Lucas Vilas Boas Iwano — matrícula 221021017"
+
+
+def _renumera_nuvem(txt):
+    """As figuras da nuvem eram 7–13 (vinham depois das de análise na numeração antiga, mas aparecem antes no texto).
+    Numeração atual, por ordem de aparição: 1 = modelo de dados, 2–8 = nuvem, 9–14 = análise."""
+    return re.sub(r"Figura (\d+)", lambda m: f"Figura {int(m.group(1)) - 5}" if 7 <= int(m.group(1)) <= 13 else m.group(0), txt)
+
+
+if NUVEM.get("executado"):
+    NUVEM["paragrafos"] = [_renumera_nuvem(x) for x in NUVEM.get("paragrafos", [])]
+    NUVEM["figuras"] = [[a, _renumera_nuvem(l)] for a, l in NUVEM.get("figuras", [])]
 
 
 def f(x, d=1):
@@ -109,12 +124,14 @@ bl([
 p("A escolha se justifica por três razões. As duas fontes têm o mesmo grão temporal (mês), o que torna o tempo a dimensão natural de integração. "
   "As métricas macro pertencem ao mês, não à atividade, e repeti-las em cada linha de produção multiplicaria por 27 o volume e o risco de inconsistência. "
   "Por fim, o esquema permite responder às perguntas com joins simples de SQL.")
-im(ROOT / "catalogo" / "diagrama_estrela.png", "Modelo dimensional do MVP (catalogo/diagrama_estrela.png).")
+im(ROOT / "catalogo" / "diagrama_estrela.png", "Figura 1 — Modelo dimensional do MVP: constelação de fatos com dimensão tempo compartilhada (catalogo/diagrama_estrela.png).")
 h2("3.2 Catálogo de dados")
-p("Os domínios abaixo foram lidos da própria base carregada, não declarados de memória. O catálogo completo, com descrição e linhagem de cada atributo, "
-  "está em catalogo/catalogo_dados.md e .csv.")
-tb(["Tabela", "Atributo", "Tipo", "Domínio observado", "Nulos", "Linhagem (resumo)"],
-   [[r.tabela, r.atributo, r.tipo, r.dominio_observado, str(r.nulos_observados), r.linhagem] for r in CAT.itertuples()])
+p("Cada atributo tem dois domínios. O domínio esperado é declarado a priori, pelo significado do dado (por exemplo, número-índice estritamente positivo; "
+  "variação percentual nunca abaixo de −100%; Selic entre 0 e 50% a.a.), e está codificado em scripts/dominios.py. O domínio observado é lido da base carregada. "
+  "A análise de qualidade (Seção 5.1) confere, atributo a atributo, se o observado respeita o esperado. O catálogo completo, com descrição, obrigatoriedade e "
+  "linhagem de cada atributo, está em catalogo/catalogo_dados.md e .csv.")
+tb(["Tabela", "Atributo", "Tipo", "Descrição", "Domínio esperado", "Domínio observado", "Nulos", "Linhagem"],
+   [[r.tabela, r.atributo, r.tipo, r.descricao, r.dominio_esperado, r.dominio_observado, str(r.nulos_observados), r.linhagem] for r in CAT.itertuples()])
 p("Sobre a obrigatoriedade: os únicos nulos com significado próprio são (a) o índice das divisões 3.18 (Impressão) e 3.33 (Manutenção), que o IBGE só "
   "publica a partir de 2012, (b) os 12 primeiros meses de variação anual e cambial, que dependem de um ano de histórico, e (c) os campos do mês corrente do BCB "
   "(setembro/2026), ainda sem divulgação completa. Nenhum nulo foi imputado.")
@@ -155,11 +172,38 @@ else:
       "porque exige login da própria conta do aluno na plataforma, e não há evidência de nuvem (capturas de tela) neste relatório. Os passos para executar estão no README: "
       "criar a conta gratuita Databricks Free Edition, criar uma Git folder apontando para o repositório e executar os três notebooks em ordem. "
       "Ao final, o notebook 02 grava as quatro tabelas Delta e o comando DESCRIBE HISTORY comprova a persistência.")
+h2("4.4 Uso de recursos e custo de operação")
+vol_bruto = sum(m["bytes"] for m in MAN) / 1e6  # MB decimais, como na Seção 6
+p(f"O enunciado pede evidência de viabilidade financeira: uso de recursos compatível com o problema e custo de operação estimado. O volume é pequeno: "
+  f"{f(vol_bruto, 1)} MB de JSON bruto e {f(sum(v for k, v in LOG.items() if k.startswith('gold_')), 0)} linhas nas quatro tabelas Delta. "
+  "Uma execução completa (três notebooks) roda em compute serverless de menor porte, sem cluster dedicado.")
+tb(["Item", "Neste MVP", "Operação contínua (estimativa)"], [
+    ["Plataforma", "Databricks Free Edition", "Workspace pago (Premium), job serverless"],
+    ["Computação", "R$ 0 (cota gratuita)", "Ordem de 1 DBU por execução × US$ 0,35/DBU (preço de lista de Jobs Serverless, AWS Premium, conferido em nov/2026) ≈ US$ 0,35 por mês, com uma execução mensal"],
+    ["Armazenamento", "R$ 0", f"{f(vol_bruto, 1)} MB brutos + tabelas Delta: custo de armazenamento desprezível (centavos por mês)"],
+    ["Coleta", "APIs públicas, sem chave e sem custo", "Idem"],
+])
+p("O consumo de DBU não foi medido: o Free Edition não expõe esse número, e a linha de 1 DBU por execução é uma ordem de grandeza para três notebooks curtos sobre "
+  "menos de 2 MB, não uma medição. Mesmo multiplicada por dez, a operação mensal fica abaixo de US$ 5. Conclusão: o custo não é obstáculo. A restrição real "
+  "observada foi técnica: o Free Edition não acessa a internet, o que obrigou a separar a coleta (local) da persistência (nuvem), como descrito na Seção 4.3.")
 
 # =====================================================================================================
 h1("5. Análise")
 h2("5.1 Qualidade dos dados")
-p("Todos os atributos foram verificados nas seis dimensões usuais. Os números abaixo são gerados pelo script de análise (data/processed/resultados.json).")
+p(f"A qualidade foi verificada em dois níveis. Primeiro, atributo a atributo: para cada um dos {R['q_atributos_total']} atributos das quatro tabelas, mediram-se "
+  "completude, número de valores distintos e aderência ao domínio esperado declarado no catálogo (Seção 3.2). Depois, nas seis dimensões usuais, com testes "
+  "que cruzam atributos e fontes. Todos os números vêm do script de análise (data/processed/resultados.json e tab_qualidade_atributos.csv).")
+tb(["Tabela", "Atributo", "Completude", "Nulos", "Distintos", "Fora do domínio esperado"],
+   [[r.tabela, r.atributo, f(r.completude_pct, 1) + "%", f(r.nulos, 0), f(r.distintos, 0), f(r.fora_dominio, 0)] for r in QATTR.itertuples()])
+_qa = lambda t, c: QATTR[(QATTR.tabela == t) & (QATTR.atributo == c)].iloc[0]
+pk_dup = sum(R["q_pk_duplicadas"].values())
+fk_orf = sum(R["q_fk_orfas"].values())
+p(f"Resultado atributo a atributo: {R['q_atributos_fora_dominio']} dos {R['q_atributos_total']} atributos têm valores fora do domínio esperado, e {R['q_atributos_com_nulos']} "
+  f"têm nulos, todos explicados na Seção 3.2 (séries que o IBGE só publica a partir de 2012, variações que dependem de 12 meses de histórico e o mês corrente do BCB). "
+  f"As chaves primárias das quatro tabelas não têm duplicatas ({pk_dup} no total) e não há chave estrangeira órfã ({fk_orf} no total). "
+  f"O índice tem {f(_qa('fato_producao', 'indice').distintos, 0)} valores distintos em {f(_qa('fato_producao', 'indice').linhas, 0)} linhas e a Selic, "
+  f"{f(_qa('fato_macro', 'selic_aa').distintos, 0)} em {f(_qa('fato_macro', 'selic_aa').linhas, 0)} meses; repetições são esperadas em séries arredondadas "
+  "a duas casas e não indicam duplicação, já descartada pelo teste de chave.")
 tb(["Dimensão", "Verificação", "Resultado", "Tratamento"], [
     ["Completude", "Nulos por atributo",
      f"Índice: {R['q_indice_ausentes_total']} nulos, todos nas divisões 3.18 e 3.33 entre jan/2002 e dez/2011. IPCA e dólar: 1 nulo cada (set./2026).",
@@ -168,19 +212,19 @@ tb(["Dimensão", "Verificação", "Resultado", "Tratamento"], [
     ["Consistência", "Variação anual recalculada; IPCA 12m oficial vs. composição do IPCA mensal; indústria geral vs. seções",
      f"Diferença máxima da variação anual: {R['q_consist_yoy_max_diff']:.0e} p.p.; IPCA 12m: diferença média de {f(R['q_ipca12m_vs_composto_medio_pp'], 4)} p.p. (máxima {f(R['q_ipca12m_vs_composto_max_diff_pp'], 3)} p.p., arredondamento); a indústria geral fica entre as seções em {f(R['q_geral_entre_secoes_pct'], 0)}% dos meses.",
      "Nenhum. Fontes coerentes entre si."],
-    ["Conformidade", "Aderência ao domínio",
-     f"Índice > 0 em 100% das linhas (mín. {f(R['q_indice_min_max_global'][0], 1)}; máx. {f(R['q_indice_min_max_global'][1], 1)}). Selic {f(R['q_macro_dominios']['selic_aa'][0], 1)}–{f(R['q_macro_dominios']['selic_aa'][1], 1)}% a.a.; dólar R$ {f(R['q_macro_dominios']['dolar_medio'][0], 2)}–{f(R['q_macro_dominios']['dolar_medio'][1], 2)}.",
+    ["Conformidade", "Aderência ao domínio esperado do catálogo",
+     f"{R['q_atributos_fora_dominio']} atributos fora do domínio (tabela acima). Índice > 0 em 100% das linhas (mín. {f(R['q_indice_min_max_global'][0], 1)}; máx. {f(R['q_indice_min_max_global'][1], 1)}). Selic {f(R['q_macro_dominios']['selic_aa'][0], 1)}–{f(R['q_macro_dominios']['selic_aa'][1], 1)}% a.a.; dólar R$ {f(R['q_macro_dominios']['dolar_medio'][0], 2)}–{f(R['q_macro_dominios']['dolar_medio'][1], 2)}.",
      "Nenhum. Todos plausíveis."],
-    ["Acurácia", "Outliers da variação anual (|z robusto| > 5)",
+    ["Acurácia", "Outliers da variação anual (z robusto, em módulo, acima de 5)",
      f"{R['q_outliers_yoy_total']} pontos, dos quais {R['q_outliers_yoy_em_pandemia_2020_21']} em mar/2020–jun/2021 (choque e rebote: maior valor, veículos em abr/2021, +{f(R['q_outliers_yoy_top'][0]['var_yoy_pct'], 0)}% sobre a base do lockdown) e {R['q_outliers_yoy_fora_pandemia']} fora dele.",
      "A janela de pandemia é excluída das estatísticas (P2 a P5); os 10 pontos restantes são mantidos (variações reais de setores voláteis)."],
     ["Atualidade", "Defasagem entre fontes", f"PIM-PF vai até jul/2026; o BCB, até {R['q_macro_ultimo_mes'][:7].replace('-', '/')} (defasagem de {R['q_defasagem_pim_vs_macro_meses']} meses). O último mês do BCB é parcial.",
      "Junção por interseção (R9); o cenário P5 usa o último juro real completo (ago./2026)."],
 ])
-im(EVID / "fig6_qualidade_ausencias.png", "Figura 1 — Meses sem informação no IBGE: apenas as divisões 3.18 e 3.33, antes de 2012.")
-p("Ressalva importante: o índice não tem ajuste sazonal. A série industrial oscila fortemente entre meses por sazonalidade (Figura 2), o que torna inadequada a comparação mês a mês. "
+im(EVID / "fig6_qualidade_ausencias.png", "Figura 9 — Meses sem informação no IBGE: apenas as divisões 3.18 e 3.33, antes de 2012.")
+p("Ressalva importante: o índice não tem ajuste sazonal. A série industrial oscila fortemente entre meses por sazonalidade (Figura 10), o que torna inadequada a comparação mês a mês. "
   "Por isso toda a análise usa variação contra o mesmo mês do ano anterior, que elimina a sazonalidade, e médias de 12 meses.")
-im(EVID / "fig1_industria_e_juro_real.png", "Figura 2 — Produção industrial (índice sem ajuste sazonal) e juro real ex-post, 2002–2026.")
+im(EVID / "fig1_industria_e_juro_real.png", "Figura 10 — Produção industrial (índice sem ajuste sazonal) e juro real ex-post, 2002–2026.")
 p(f"Amostra de análise. Para P2 a P5 usa-se janeiro/2013 a julho/2026, excluindo mar/2020–jun/2021: {R['amostra_meses']} meses, comum às 27 atividades. "
   "O corte em 2013 é o primeiro mês em que as duas divisões de série curta têm variação anual; a exclusão da pandemia evita que um único choque de +900% domine correlações e regressões.")
 
@@ -188,8 +232,8 @@ h2("5.2 P1 — Recuperação em relação a 2019")
 p(f"O agregado voltou: a indústria geral produz hoje (média dos últimos 12 meses) {f((P1r['geral_razao'] - 1) * 100)}% acima da média de 2019, com queda máxima de "
   f"{f(abs(P1r['geral_queda_2020']), 0)}% no fundo de 2020 e retorno sustentado ao patamar de 2019 em {f(P1r['geral_meses'], 0)} meses. As extrativas estão "
   f"{f((P1r['extrativas'] - 1) * 100)}% acima, e a indústria de transformação, {f((P1r['transformacao'] - 1) * 100)}% acima. "
-  f"A média, porém, esconde a divisão: das {P1r['n_divisoes']} divisões da transformação, {P1r['abaixo']} ainda estão abaixo de 2019 e {P1r['acima']} acima (Figura 3).")
-im(EVID / "fig2_P1_recuperacao_pre_pandemia.png", "Figura 3 — Produção atual vs. média de 2019 por divisão (P1).")
+  f"A média, porém, esconde a divisão: das {P1r['n_divisoes']} divisões da transformação, {P1r['abaixo']} ainda estão abaixo de 2019 e {P1r['acima']} acima (Figura 11).")
+im(EVID / "fig2_P1_recuperacao_pre_pandemia.png", "Figura 11 — Produção atual vs. média de 2019 por divisão (P1).")
 sel = P1[P1.codigo.str.startswith("3.")].sort_values("razao_ult12m_2019")
 linhas = pd.concat([sel.head(5), sel.tail(5)])
 tb(["Cód.", "Divisão", "Atual vs. 2019", "Queda máx. 2020", "Meses p/ recuperar"],
@@ -204,10 +248,10 @@ p("Resposta a P1. Os cinco piores casos são Impressão (−33%), Confecção (�
 p("Cautela: comparar com a média de um único ano (2019) é uma escolha de base. 2019 foi um ano de crescimento fraco, então \"acima de 2019\" não significa \"acima da tendência\".")
 
 h2("5.3 P2 — Sensibilidade ao juro real")
-p("Para cada uma das 27 atividades calculou-se a correlação entre o crescimento anual em t e o juro real em t−k, para k de 0 a 12 meses (Figura 4). O sinal esperado por H1 é negativo. "
+p("Para cada uma das 27 atividades calculou-se a correlação entre o crescimento anual em t e o juro real em t−k, para k de 0 a 12 meses (Figura 12). O sinal esperado por H1 é negativo. "
   "Como a escolha do melhor k dentre 13 defasagens infla a chance de achar correlação por acaso, e as séries são altamente autocorrelacionadas, a significância foi avaliada por um teste de permutação: "
-  f"o juro real é deslocado circularmente ({P2r['perm_n']:,} deslocamentos aleatórios) e compara-se a correlação mais negativa observada com a distribuição do mínimo sobre as 13 defasagens.".replace(",", "."))
-im(EVID / "fig3_P2_correlacao_por_defasagem.png", "Figura 4 — Correlação juro real × crescimento anual por defasagem, divisões da transformação (P2).")
+  f"o juro real é deslocado circularmente ({f(P2r['perm_n'], 0)} deslocamentos aleatórios) e compara-se a correlação mais negativa observada com a distribuição do mínimo sobre as 13 defasagens.")
+im(EVID / "fig3_P2_correlacao_por_defasagem.png", "Figura 12 —Correlação juro real × crescimento anual por defasagem, divisões da transformação (P2).")
 top = P2r["top"]
 tb(["Atividade", "Defasagem", "Correlação", "p (permutação)"],
    [[f"{c} {n}", str(k), f"{r:+.2f}".replace(".", ","), f(pv, 2)] for c, n, r, k, pv in top] +
@@ -221,8 +265,8 @@ p("Interpretação. Três explicações são plausíveis, e a análise não sepa
   "O resultado negativo é informativo: quem usar a Selic corrente para prever a produção setorial no curto prazo não terá respaldo nestes dados.")
 
 h2("5.4 P3 — Câmbio, controlando o juro")
-p("Para cada atividade estimou-se por mínimos quadrados o crescimento anual contra o juro real defasado (no lag ótimo de P2) e a variação cambial de 12 meses, com erros-padrão robustos a autocorrelação e heterocedasticidade (Newey-West, 12 defasagens). A Figura 5 mostra os coeficientes com intervalos de 95%.")
-im(EVID / "fig4_P3_coeficientes.png", "Figura 5 — Coeficientes de juro real e de câmbio por divisão (P3).")
+p("Para cada atividade estimou-se por mínimos quadrados o crescimento anual contra o juro real defasado (no lag ótimo de P2) e a variação cambial de 12 meses, com erros-padrão robustos a autocorrelação e heterocedasticidade (Newey-West, 12 defasagens). A Figura 13 mostra os coeficientes com intervalos de 95%.")
+im(EVID / "fig4_P3_coeficientes.png", "Figura 13 — Coeficientes de juro real e de câmbio por divisão (P3).")
 cn = P3r["cambio_neg_sig"]
 tb(["Atividade", "β câmbio (p.p. por 1% de desvalorização)", "estatística t"],
    [[f"{c} {n}", f"{b:+.2f}".replace(".", ","), f"{t:+.2f}".replace(".", ",")] for c, n, b, t in cn] +
@@ -246,7 +290,7 @@ p(f"Resposta a P4. A razão entre a divisão mais e a menos volátil é de {f(sd
 h2("5.6 P5 — Cenário de queda do juro real e discussão geral")
 p(f"O cenário aplica ao coeficiente de juro de cada atividade uma queda de 3 p.p. (de {f(R['P5_juro_real_atual_pct'], 1)}% a.a. em {R['P5_ult_mes_juro_real'][:7].replace('-', '/')}, com Selic de {f(R['P5_selic_atual'], 2)}% "
   f"e IPCA 12m de {f(R['P5_ipca12m_atual'], 2)}%, para cerca de {f(R['P5_juro_real_atual_pct'] - 3, 1)}%, próximo à média histórica de {f(R['P5_juro_real_media_hist_pct'], 1)}%). O intervalo de 95% usa o erro-padrão robusto.")
-im(EVID / "fig5_P4_P5_sensibilidade_volatilidade.png", "Figura 6 — Efeito projetado de −3 p.p. de juro real vs. volatilidade (P4/P5).")
+im(EVID / "fig5_P4_P5_sensibilidade_volatilidade.png", "Figura 14 — Efeito projetado de −3 p.p. de juro real vs. volatilidade (P4/P5).")
 sel5 = P5[P5.codigo.isin(["1", "3", "3.28", "3.19", "3.18", "3.31"])]
 ordem = ["1", "3", "3.28", "3.19", "3.18", "3.31"]
 sel5 = sel5.set_index("codigo").loc[ordem].reset_index()
@@ -266,7 +310,9 @@ p("Discussão geral. Os resultados formam um quadro coerente, embora em parte ne
 # =====================================================================================================
 h1("6. Ética, licenciamento e proteção de dados")
 bl([
-    "Licença dos dados. Ambas as fontes são estatísticas públicas divulgadas como dados abertos: IBGE (SIDRA) e Banco Central do Brasil (SGS). Exigem citação da fonte. A licença específica de cada conjunto não foi verificada automaticamente nesta execução, e deve ser conferida em sidra.ibge.gov.br e dadosabertos.bcb.gov.br antes de qualquer reutilização comercial. Por serem séries agregadas de tamanho pequeno (cerca de 1,7 MB), os arquivos brutos foram versionados para garantir reprodutibilidade; o script de coleta também está publicado.",
+    "Licença dos dados do Banco Central (SGS). As séries 4189, 433, 13522 e 3698 estão publicadas no Portal de Dados Abertos do BCB (dadosabertos.bcb.gov.br) sob a Open Data Commons Open Database License (ODbL). A ODbL permite redistribuir e criar bases derivadas, com duas condições: atribuição da fonte e compartilhamento da base derivada sob a mesma licença. Por isso as tabelas derivadas publicadas em data/processed (fato_macro e o arquivo dw_industria.sqlite) são distribuídas também sob a ODbL, com atribuição ao BCB (registro no arquivo LICENSE).",
+    "Licença dos dados do IBGE (SIDRA, tabela 8888). A PIM-PF é estatística oficial de divulgação pública. A reprodução é aceita com citação obrigatória da fonte, e o trabalho cita \"IBGE, Pesquisa Industrial Mensal – Produção Física, tabela 8888 (SIDRA)\" no README, no catálogo e no relatório. Não foi localizada uma licença aberta formal (do tipo CC ou ODbL) específica para a tabela, e isso fica registrado aqui. Para reutilização comercial, convém confirmar os termos diretamente com o IBGE.",
+    "Versionamento dos dados brutos. Como as duas fontes permitem redistribuição com atribuição, e os arquivos são pequenos (cerca de 1,7 MB), os JSON brutos foram versionados em data/raw para garantir reprodutibilidade, inclusive no Databricks Free Edition, que não acessa a internet. O script de coleta também está publicado, e o manifesto registra URL, data e hash SHA-256 de cada arquivo.",
     "Dados pessoais (LGPD). Não se aplica: as bases são agregados nacionais mensais, sem identificadores de pessoas ou empresas.",
     "Dados corporativos. Não se aplica: nenhum dado de empresa foi utilizado.",
     "Coleta automatizada. Foram usadas apenas APIs oficiais, sem scraping, com pausa entre tentativas.",
@@ -299,8 +345,8 @@ bl([
 # Renderização
 def md_render():
     out = ["# MVP — Pipeline de dados em nuvem: produção industrial × juros, câmbio e inflação\n",
-           "**Universidade de Brasília — Departamento de Engenharia de Produção · Seminários (SSD/MVP)**  \n"
-           "Aluno: Lucas Iwano · Professor: André Luiz Marques Serrano\n",
+           f"**Universidade de Brasília — Departamento de Engenharia de Produção · {DISCIPLINA}**  \n"
+           f"Aluno: {ALUNO} · Professor: André Luiz Marques Serrano\n",
            f"> Repositório: {REPO}  \n> Relatório em Word: `Relatorio_MVP_Industria_Juros_Lucas_Iwano.docx`\n",
            "## Como reproduzir (resumo)\n",
            "```bash\npip install -r requirements.txt\npython scripts/coleta.py && python scripts/etl.py && python scripts/analise.py\n```\n",
@@ -352,12 +398,12 @@ def docx_render():
         s.font.bold = True
         s.font.color.rgb = RGBColor.from_string(cor)
     # capa
-    for txt, sz, bold in [("UNIVERSIDADE DE BRASÍLIA", 14, True), ("Departamento de Engenharia de Produção", 12, False), ("", 11, False),
+    for txt, sz, bold in [("UNIVERSIDADE DE BRASÍLIA", 14, True), ("Departamento de Engenharia de Produção", 12, False), (DISCIPLINA, 12, False), ("", 11, False),
                           ("MVP — MINIMUM VIABLE PRODUCT", 20, True),
                           ("Pipeline de dados em nuvem: produção industrial brasileira, juros, câmbio e inflação", 16, True),
                           ("Recuperação pós-pandemia, sensibilidade ao juro real e risco por setor da indústria", 12, False), ("", 11, False),
-                          ("Aluno: Lucas Iwano", 12, False), ("Professor: André Luiz Marques Serrano", 12, False),
-                          ("Setembro de 2026", 12, False), (f"Repositório: {REPO}", 11, False)]:
+                          (f"Aluno: {ALUNO}", 12, False), ("Professor: André Luiz Marques Serrano", 12, False),
+                          ("Novembro de 2026", 12, False), (f"Repositório: {REPO}", 11, False)]:
         par = d.add_paragraph()
         par.alignment = WD_ALIGN_PARAGRAPH.CENTER
         r = par.add_run(txt)
